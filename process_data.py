@@ -85,6 +85,7 @@ backup_limit = args.backup
 data_dir = f"{root_dir}/data"
 fetch_dir = f"{root_dir}/extracted"
 backup_dir = f"{root_dir}/backup"
+html_dir = f"{fetch_dir}/html"
 csv_file = f"{fetch_dir}/records.csv"
 unprocessed_file = f"{fetch_dir}/unprocessed.txt"
 dataless_file = f"{fetch_dir}/dataless.txt"
@@ -92,6 +93,7 @@ dataless_file = f"{fetch_dir}/dataless.txt"
 # Create required directories
 os.makedirs(fetch_dir, exist_ok=True)
 os.makedirs(backup_dir, exist_ok=True)
+os.makedirs(html_dir, exist_ok=True)
 
 # Delete older backups if there are more than specific number of backups
 b_dir = [d for d in glob.glob(f"{backup_dir}/*") if os.path.isdir(d)]
