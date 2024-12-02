@@ -6,6 +6,8 @@ import shutil
 import argparse
 from datetime import datetime
 
+print("Starts Data Processing")
+
 # Functions for differnet operations
 def get_meta_values(input_str):
     """Get meta values from a path string"""
