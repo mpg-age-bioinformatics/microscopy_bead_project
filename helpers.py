@@ -1,3 +1,5 @@
+import os
+import glob
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
@@ -137,4 +139,15 @@ def generate_fig_data(df, microscope=None, objective=None, test=None, bead_size=
     except:
         return None, None, None, None, None
     
+# Get the list of image relative paths
+# Return: list
+def get_image_paths(input_path, base_path = "/mbp/data/"):
+    # Extract the directory from the input path
+    directory = os.path.dirname(input_path)
+    
+    # Use glob to find all .jpg files in the directory
+    image_files = glob.glob(os.path.join(directory, "*.jpg"))
+    relative_paths = [path.replace(base_path, "") for path in image_files]
+    
+    return relative_paths
     

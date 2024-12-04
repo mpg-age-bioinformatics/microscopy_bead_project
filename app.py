@@ -1,10 +1,14 @@
 import dash
+import os
 from dash import html, dash_table, dcc, Input, Output, State, Dash
 import pandas as pd
 import plotly.express as px
+from flask import send_file
 import dash_bootstrap_components as dbc
-from helpers import generate_fig_data
+from helpers import generate_fig_data, get_image_paths
 
+# Define values
+base_data_path = "/mbp/data"
 df = pd.read_csv('/mbp/extracted/records.csv')
 df = df.assign(date=lambda x: pd.to_datetime(x['date'], format='%Y%m%d'))
 
@@ -14,7 +18,22 @@ test_list = df['test'].unique()
 bead_size_list = df['bead_size'].unique()
 bead_number_list = df['bead_number'].unique()
 
+
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+
+server = app.server
+
+# Flask route to serve images
+@server.route('/images/<path:image_name>')
+def serve_image(image_name):
+    # Construct the full path to the requested image
+    image_path = os.path.join(base_data_path, image_name)
+
+    # Check if the file exists and is under the base directory
+    if os.path.isfile(image_path) and os.path.commonpath([base_data_path, image_path]) == base_data_path:
+        return send_file(image_path)
+    else:
+        return "", 200
 
 app.layout = html.Div([
     html.H2("Microscopy Bead Project", style={'textAlign': 'center'}),
@@ -97,14 +116,38 @@ def update_output(n_clicks, microscope, objective, test, bead_size, bead_number,
     fig, considerd_df, change_df, fig_name, warning = generate_fig_data(df, microscope, objective, test, bead_size, bead_number, start_date, end_date)
 
     if fig is None or considerd_df is None or change_df is None:
-        return html.Div("No data found with the input!", style={"margin-top": "15px", "margin-left": "15px"})
+        return html.Div("No data found with the inputs!", style={"margin-top": "15px", "margin-left": "15px"})
 
     figure_tab = dcc.Graph(
         id='plotly-figure',
         figure=fig
     )
 
-    bead_tab = html.Div("Bead List!")
+    bead_tab = html.Div(
+        [
+            # Loop through bead paths to generate sections
+            html.Div(
+                [
+                    html.H6(os.path.dirname(bead_path), style={'textAlign': 'center'}),  # Bead path header
+
+                    # Display images for this bead path
+                    html.Div(
+                        [
+                            html.Img(
+                                src=f"/images/{image}",  # Replace with actual image path logic
+                                title=os.path.basename(image),
+                                style={"width": "200px", "margin": "10px"}
+                            )
+                            for image in get_image_paths(bead_path)
+                        ],
+                        style={"display": "flex", "flexWrap": "wrap", "justifyContent": "center"}
+                    )
+                ],
+                style={"margin-bottom": "30px"}  # Add spacing between bead sections
+            )
+            for bead_path in considerd_df['file_path']
+        ]
+    )
 
     considered_tab = dash_table.DataTable(
         id='considered-table',
@@ -149,7 +192,7 @@ def update_output(n_clicks, microscope, objective, test, bead_size, bead_number,
                     children=[ considered_tab ],
                     style={"margin-top":"50%","height": "100%"} 
                 ), 
-                label="Input Data", id="tab-considered",
+                label="Data", id="tab-considered",
                 style={"margin-top":"0%"}
             ),
             dcc.Tab(
@@ -169,7 +212,7 @@ def update_output(n_clicks, microscope, objective, test, bead_size, bead_number,
                     children=[ bead_tab ],
                     style={"margin-top":"50%","height": "100%"} 
                 ), 
-                label="Bead Image", id="tab-bead",
+                label="Image", id="tab-bead",
                 style={"margin-top":"0%"}
             )
         ]
