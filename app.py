@@ -113,7 +113,7 @@ def update_output(n_clicks, microscope, objective, test, bead_size, bead_number,
     if not n_clicks:
         return html.Div("Submit to get output!", style={"margin-top": "15px", "margin-left": "15px"})
     
-    fig, considerd_df, change_df, fig_name, warning = generate_fig_data(df, microscope, objective, test, bead_size, bead_number, start_date, end_date)
+    fig, considerd_df, change_df, fig_name, warning = generate_fig_data(df, microscope, objective, test, bead_size, bead_number, start_date, end_date, consider_limit, warning_percentage)
 
     if fig is None or considerd_df is None or change_df is None:
         return html.Div("No data found with the inputs!", style={"margin-top": "15px", "margin-left": "15px"})
