@@ -8,7 +8,7 @@ import os
 
 print("Starts Generating HTML")
 
-extracted_dir = '/mbp/extracted'
+extracted_dir = '/mcs_bead_project/extracted'
 record_file = f"{extracted_dir}/records.csv"
 html_dir = f"{extracted_dir}/html"
 html_all_file = f"{extracted_dir}/figures.html"

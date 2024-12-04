@@ -8,8 +8,8 @@ import dash_bootstrap_components as dbc
 from helpers import generate_fig_data, get_image_paths
 
 # Define values
-base_data_path = "/mbp/data"
-df = pd.read_csv('/mbp/extracted/records.csv')
+base_data_path = "/mcs_bead_project/data"
+df = pd.read_csv('/mcs_bead_project/extracted/records.csv')
 df = df.assign(date=lambda x: pd.to_datetime(x['date'], format='%Y%m%d'))
 
 microscope_list = df['microscope'].unique()

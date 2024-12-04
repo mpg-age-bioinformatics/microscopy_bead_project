@@ -35,7 +35,7 @@ docker build -t mcs_bead_proj .
 #### Run Docker Container
 
 ```
-docker run -d --rm --name mcs_bead_proj -p 8050:8050 -v ~/mcs_bead_project:/mbp mcs_bead_proj
+docker run -d --rm --name mcs_bead_proj -p 8050:8050 -v ~/mcs_bead_project:/mcs_bead_project mcs_bead_proj
 ```
 This will fetch target data to a CSV file (in `~/mcs_bead_project/extracted/records.csv`), generate base html figures (in `~/mcs_bead_project/extracted/`) and web application accessible through: http://localhost:8050/
 

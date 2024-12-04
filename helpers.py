@@ -141,7 +141,7 @@ def generate_fig_data(df, microscope=None, objective=None, test=None, bead_size=
     
 # Get the list of image relative paths
 # Return: list
-def get_image_paths(input_path, base_path = "/mbp/data/"):
+def get_image_paths(input_path, base_path = "/mcs_bead_project/data/"):
     # Extract the directory from the input path
     directory = os.path.dirname(input_path)
     

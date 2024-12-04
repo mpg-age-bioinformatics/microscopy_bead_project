@@ -14,4 +14,4 @@ RUN pip install -r /app/requirements.txt
 EXPOSE 8050
 
 # Command to run the app
-CMD ["sh", "-c", "python3 process_data.py -d /mbp && python3 generate_html.py && python3 app.py"]
+CMD ["sh", "-c", "python3 process_data.py -d /mcs_bead_project && python3 generate_html.py && python3 app.py"]
