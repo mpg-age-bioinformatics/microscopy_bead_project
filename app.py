@@ -1,5 +1,5 @@
 import dash
-from dash import html, dash_table, dcc
+from dash import html, dash_table, dcc, Input, Output, State, Dash
 import pandas as pd
 import plotly.express as px
 import dash_bootstrap_components as dbc
@@ -19,23 +19,7 @@ fig, considerd_df, change_df, fig_name, warning = generate_fig_data(df, 'AndorDr
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 app.layout = html.Div([
-    html.H1("Microscopy Bead Project", style={'textAlign': 'center'}),
-    # dash_table.DataTable(
-    #     id='data-table',
-    #     columns=[{"name": i, "id": i} for i in df.columns],
-    #     data=df.to_dict('records'),
-    #     style_table={'overflowX': 'auto'},
-    #     style_header={
-    #         'backgroundColor': 'rgb(230, 230, 230)',
-    #         'fontWeight': 'bold'
-    #     },
-    #     style_cell={'textAlign': 'left'}
-    # ),
-    # dcc.Graph(
-    #     id='plotly-figure',
-    #     figure=fig
-    # ),
-
+    html.H2("Microscopy Bead Project", style={'textAlign': 'center'}),
     html.Div([
         dbc.Row(
             [
@@ -79,13 +63,6 @@ app.layout = html.Div([
                 # Second Column: Markdown Section
                 dbc.Col(
                     [
-                        dcc.Markdown(
-                            "Test",
-                            style={
-                                "margin-top": "15px",
-                                "margin-left": "15px"
-                            }
-                        ),
                         html.Div(id="tab-output"),
                     ],
                     xs=12, sm=12, md=6, lg=8, xl=9,
@@ -98,12 +75,110 @@ app.layout = html.Div([
             style={"width": "100%"}
         )
     ])
-
-
-
-
-
 ])
+
+
+
+@app.callback(
+    Output("tab-output", "children"),
+    Input("submit-button-state", "n_clicks"),
+    State("opt-microscope", "value"),
+    State("opt-objective", "value"),
+    State("opt-test", "value"),
+    State("opt-bead-size", "value"),
+    State("opt-bead-number", "value"),
+    State("opt-date", "start_date"),
+    State("opt-date", "end_date"),
+    State("opt-consider-limit", "value"),
+    State("opt-warning-percentage", "value")
+)
+def update_output(n_clicks, microscope, objective, test, bead_size, bead_number, start_date, end_date, consider_limit, warning_percentage):
+    if not n_clicks:
+        return html.Div("Submit to get output!", style={"margin-top": "15px", "margin-left": "15px"})
+    
+    fig, considerd_df, change_df, fig_name, warning = generate_fig_data(df, microscope, objective, test, start_date, end_date)
+
+    if fig is None or considerd_df is None or change_df is None:
+        return html.Div("Fail to generate figure with your input!", style={"margin-top": "15px", "margin-left": "15px"})
+
+    figure_tab = dcc.Graph(
+        id='plotly-figure',
+        figure=fig
+    )
+
+    bead_tab = html.Div("Bead List!")
+
+    considered_tab = dash_table.DataTable(
+        id='considered-table',
+        columns=[{"name": i, "id": i} for i in considerd_df.columns],
+        data=considerd_df.to_dict('records'),
+        style_table={'overflowX': 'auto'},
+        style_header={
+            'backgroundColor': 'rgb(230, 230, 230)',
+            'fontWeight': 'bold'
+        },
+        style_cell={'textAlign': 'left'}
+    )
+
+    change_tab = dash_table.DataTable(
+        id='considered-table',
+        columns=[{"name": i, "id": i} for i in change_df.columns],
+        data=change_df.to_dict('records'),
+        style_table={'overflowX': 'auto'},
+        style_header={
+            'backgroundColor': 'rgb(230, 230, 230)',
+            'fontWeight': 'bold'
+        },
+        style_cell={'textAlign': 'left'}
+    )
+
+    output=dcc.Tabs( 
+        [ 
+            dcc.Tab(
+                dcc.Loading(
+                    id="loading-output-1",
+                    type="default",
+                    children=[ figure_tab ],
+                    style={"margin-top":"50%","height": "100%"} 
+                ), 
+                label="Figure", id="tab-figure",
+                style={"margin-top":"0%"}
+            ),
+            dcc.Tab(
+                dcc.Loading(
+                    id="loading-output-2",
+                    type="default",
+                    children=[ considered_tab ],
+                    style={"margin-top":"50%","height": "100%"} 
+                ), 
+                label="Input Data", id="tab-considered",
+                style={"margin-top":"0%"}
+            ),
+            dcc.Tab(
+                dcc.Loading(
+                    id="loading-output-4",
+                    type="default",
+                    children=[ change_tab ],
+                    style={"margin-top":"50%","height": "100%"} 
+                ), 
+                label="Deviation", id="tab-change",
+                style={"margin-top":"0%"}
+            ),
+            dcc.Tab(
+                dcc.Loading(
+                    id="loading-output-3",
+                    type="default",
+                    children=[ bead_tab ],
+                    style={"margin-top":"50%","height": "100%"} 
+                ), 
+                label="Bead Image", id="tab-bead",
+                style={"margin-top":"0%"}
+            )
+        ]
+    )
+
+    return output
+
 
 if __name__ == '__main__':
     app.run_server(debug=True, host='0.0.0.0', port=8050)
