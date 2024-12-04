@@ -14,8 +14,6 @@ test_list = df['test'].unique()
 bead_size_list = df['bead_size'].unique()
 bead_number_list = df['bead_number'].unique()
 
-fig, considerd_df, change_df, fig_name, warning = generate_fig_data(df, 'AndorDragonfly', '100x1.45', None, None, None, 3, 15)
-
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 app.layout = html.Div([
@@ -35,7 +33,7 @@ app.layout = html.Div([
                                 html.Label('Bead Number'), dcc.Dropdown( id='opt-bead-number', options=[{'label': item, 'value': item} for item in bead_number_list]),
                                 # html.Label('Start Date'), dcc.DatePickerSingle(id='date-picker', placeholder='Select a date', style={'margin-bottom': '20px'}),
                                 html.Label('Date Range'), html.Br(), dcc.DatePickerRange(id='opt-date', display_format='YYYY-MM-DD'),
-                                html.Label('Consider Previous Change Values'), html.Br(), dcc.Input(id='opt-consider-limit', type='number', value=3, min=1, max=50),
+                                html.Label('Consider Previous Values for Line Deviation'), html.Br(), dcc.Input(id='opt-consider-limit', type='number', value=3, min=1, max=50),
                                 html.Br(), html.Label('Warning Percentage'), html.Br(), dcc.Input(id='opt-warning-percentage', type='number', value=15, min=1, max=100)
                             ],
                             body=True
@@ -96,10 +94,10 @@ def update_output(n_clicks, microscope, objective, test, bead_size, bead_number,
     if not n_clicks:
         return html.Div("Submit to get output!", style={"margin-top": "15px", "margin-left": "15px"})
     
-    fig, considerd_df, change_df, fig_name, warning = generate_fig_data(df, microscope, objective, test, start_date, end_date)
+    fig, considerd_df, change_df, fig_name, warning = generate_fig_data(df, microscope, objective, test, bead_size, bead_number, start_date, end_date)
 
     if fig is None or considerd_df is None or change_df is None:
-        return html.Div("Fail to generate figure with your input!", style={"margin-top": "15px", "margin-left": "15px"})
+        return html.Div("No data found with the input!", style={"margin-top": "15px", "margin-left": "15px"})
 
     figure_tab = dcc.Graph(
         id='plotly-figure',

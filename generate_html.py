@@ -57,12 +57,12 @@ for microscope in microscope_list:
         <!DOCTYPE html>
         <html>
         <head>
-            <title>Figure with Change Table</title>
+            <title>Figure with Deviation Table</title>
             <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
         </head>
         <body>
             <div>{figure_html}</div>
-            <h4>Change Table</h4>
+            <h4>Deviation Table</h4>
             <div>{table_html}</div>
         </body>
         </html>
@@ -74,7 +74,7 @@ for microscope in microscope_list:
         
         # Add figure to html_all
         html_all += f"<div>{figure_html}</div>"
-        html_all += "<h4>Change Table</h4>"
+        html_all += "<h4>Deviation Table</h4>"
         html_all += f"<div>{table_html}</div>"
         
 # generate figures.html with html_all content

@@ -5,7 +5,7 @@ from datetime import datetime
 
 # Filter dataframe
 # Return: filtered dataframe
-def fetch_df(df, microscope=None, objective=None, test=None, start_date=None, end_date=None):
+def fetch_df(df, microscope=None, objective=None, test=None, bead_size=None, bead_number=None, start_date=None, end_date=None):
     # filter df by date if provided
     try:
         if datetime.strptime(start_date, '%Y-%m-%d') and datetime.strptime(end_date, '%Y-%m-%d'):
@@ -18,16 +18,20 @@ def fetch_df(df, microscope=None, objective=None, test=None, start_date=None, en
         df = df[df['objective'] == objective]
     if test is not None:
         df = df[df['test'] == test]
+    if bead_size is not None:
+        df = df[df['bead_size'] == bead_size]
+    if bead_number is not None:
+        df = df[df['bead_number'] == bead_number]
         
     return df
 
 
 # Generate figure, considered value and warning
 # Return: figure, data, change, title, warning
-def generate_fig_data(df, microscope=None, objective=None, test=None, start_date=None, end_date=None, consider_limit=3, warning_percentage=15):
+def generate_fig_data(df, microscope=None, objective=None, test=None, bead_size=None, bead_number=None, start_date=None, end_date=None, consider_limit=3, warning_percentage=15):
     try:
         # fetch dataframe
-        fdf = fetch_df(df, microscope, objective, test, start_date, end_date)
+        fdf = fetch_df(df, microscope, objective, test, bead_size, bead_number, start_date, end_date)
         if fdf.empty:
             return None, None, None, None, None
 
