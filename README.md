@@ -8,7 +8,7 @@
 
 ### Get Started
 
-Prequisite: Docker
+Prerequisite: Docker
 
 #### Data Storage
 
