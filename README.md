@@ -51,3 +51,41 @@ After adding or updating data in `~/mcs_bead_project/data` directory run the fol
 docker restart mcs_bead_proj
 ```
 
+
+### Components
+
+#### Microscopy Bead Project App
+
+Web app can be accessed from your browser with: http://localhost:8050/
+
+Filter Options: Microscope, Objective, Test, Bead Size, Bead Number, Date Range, Consider Previous Values for Line Deviation, Warning Percentage
+
+Output Tabs:
+- Figure (plotly output diagram)
+- Data (data table from inputs that generates the diagram)
+- Deviation (data table depicts the deviations in different lines)
+- Image (related bead images)
+
+#### Extracted
+
+All important extracted files fetched from the input data will be stored in `~/mcs_bead_project/extracted`
+
+`extracted` directory contains the following:
+- `records.csv`: primary file that stores all the fetched records from the input directory
+- `dataless.txt`: contains directories where no target data was found
+- `unprocessed.txt`: contains directories that could not be processed to fetch data
+- `figures.html`: contains base figures in one html file
+- `html`: directory contains html files of individual figures
+
+#### Backup
+
+Backups from previously extracted files are stored in `~/mcs_bead_project/backup`.
+By default last 100 extracted backups would be stored. If something goes wrong, you can always get back to previous version of fetched data by copying them to `~/mcs_bead_project/extracted` directory.
+
+### Support
+For any query and support, please do not hesitate to get in touch through: bioinformatics@age.mpg.de
+
+
+
+
+
