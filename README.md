@@ -51,6 +51,14 @@ After adding or updating data in `~/mcs_bead_project/data` directory run the fol
 docker restart mcs_bead_proj
 ```
 
+#### Development
+
+Mounting the scripts would enable to run the app in the development mode:
+```
+docker run -d --rm --name mcs_bead_proj -p 8050:8050 -v $(pwd):/app -v ~/mcs_bead_project:/mcs_bead_project mcs_bead_proj
+```
+
+Can remove the `-d` flag to get the state/logs of the running container.
 
 ### Components
 
