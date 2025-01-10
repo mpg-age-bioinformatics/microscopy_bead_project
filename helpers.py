@@ -38,14 +38,17 @@ def generate_fig_data(df, microscope=None, objective=None, test=None, bead_size=
             return None, None, None, None, None
 
         # defined values
-        columns_to_mean = ['far_red', 'red', 'uv', 'dual']
+        columns_to_mean = ['far_red', 'red', 'uv', 'dual', 'x', 'y', 'z']
         warning = False
         sd_data = []
         color_map = {
             'far_red': 'orange',
             'red': 'red',
             'uv': 'blue',
-            'dual': 'green'
+            'dual': 'green',
+            'x': 'purple',
+            'y': 'cyan',
+            'z': 'magenta'
         }
 
         # get fig name
@@ -115,6 +118,7 @@ def generate_fig_data(df, microscope=None, objective=None, test=None, bead_size=
         else:
             title_content = f"🟢🟢🟢 {fig_name} 🟢🟢🟢"
 
+        mean_label = "FWHM µm" if test == "PSFo" else "Distance in µm"
         # generate figure
         fig = px.line(
             proc_df,
@@ -123,7 +127,7 @@ def generate_fig_data(df, microscope=None, objective=None, test=None, bead_size=
             error_y='std',
             color='metric',
             color_discrete_map=color_map,
-            labels={'mean': 'Value', 'date': 'Date', 'metric': 'Metric'},
+            labels={'mean': mean_label, 'date': 'Date', 'metric': 'Metric'},
             markers=True
         )
 

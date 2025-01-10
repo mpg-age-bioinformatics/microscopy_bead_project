@@ -116,7 +116,7 @@ shutil.copytree(fetch_dir, current_b_dir, dirs_exist_ok=True)
 os.utime(current_b_dir, (ctime, ctime))
 
 # Setup CSV file with defined header
-csv_header = ["date","microscope","objective","test","bead_size","bead_number","far_red","red","uv","dual","file_path"]
+csv_header = ["date","microscope","objective","test","bead_size","bead_number","far_red","red","uv","dual","x","y","z","file_path"]
 with open(csv_file, mode='w', newline='') as file:
     writer = csv.writer(file)
     writer.writerow(csv_header)
@@ -145,17 +145,17 @@ for file in valid_files:
             if meta_values[3] == "PSFo":
                 properties = extract_values_psfo(file)
                 if isinstance(properties, list) and len(properties) == 3 and all(0 < float(val) < 1 for val in properties):
-                    row.extend(properties + ["NA", rf"{file}"])
+                    row.extend(["NA", "NA", "NA", "NA"] + properties + [rf"{file}"])
             elif meta_values[3] == "ChromDual":
                 properties = extract_values_chrom(file)
                 if isinstance(properties, list) and len(properties) == 1 and all(0 < float(val) < 1 for val in properties):
-                    row.extend(["NA", "NA", "NA"] + properties + [rf"{file}"])
+                    row.extend(["NA", "NA", "NA"] + properties + ["NA", "NA", "NA"] + [rf"{file}"])
             else:
                 properties = extract_values_chrom(file)
                 if isinstance(properties, list) and len(properties) == 3 and all(0 < float(val) < 1 for val in properties):
-                    row.extend(properties + ["NA", rf"{file}"])       
+                    row.extend(properties + ["NA", "NA", "NA", "NA", rf"{file}"])       
                 
-    if isinstance(row, list) and len(row) == 11:
+    if isinstance(row, list) and len(row) == 14:
         with open(csv_file, 'a', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(row)
