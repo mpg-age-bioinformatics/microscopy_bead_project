@@ -29,19 +29,39 @@ def extract_values_psfo(file_path):
         if not os.path.exists(file_path):
             return None
 
+        # Handle two types of patterns and fetch the values 
         values_line = None
+        values_lines = []
+        capture = False
         with open(file_path, 'r') as file:
             for line in file:
+                if capture:
+                    values_lines.append(line.strip())
+                    if len(values_lines) == 3:
+                        break
                 if "Measured FWHM" in line:
                     values_line = line.strip()
-                    break
+                    if values_line.startswith('Measured FWHM'):
+                        break
+                    else:
+                        capture = True
+                        continue
 
         if values_line is None:
             return None
 
-        values = (values_line.split('\t'))[1:] 
-        values = [float(value) for value in values]
+        if not values_lines:
+            values = (values_line.split('\t'))[1:] 
+            values = [float(value) for value in values]
+        else:
+            values = [
+                float(re.search(r'(X|Y|Z)\t([\d.]+)', line).group(2))
+                for line in values_lines
+                if re.search(r'(X|Y|Z)\t([\d.]+)', line)
+            ]
+        
         return values
+
     except:
         return None
 
@@ -144,15 +164,15 @@ for file in valid_files:
             row.extend(meta_values)
             if meta_values[3] == "PSFo":
                 properties = extract_values_psfo(file)
-                if isinstance(properties, list) and len(properties) == 3 and all(0 < float(val) < 1 for val in properties):
+                if isinstance(properties, list) and len(properties) == 3:
                     row.extend(["NA", "NA", "NA", "NA"] + properties + [rf"{file}"])
             elif meta_values[3] == "ChromDual":
                 properties = extract_values_chrom(file)
-                if isinstance(properties, list) and len(properties) == 1 and all(0 < float(val) < 1 for val in properties):
+                if isinstance(properties, list) and len(properties) == 1:
                     row.extend(["NA", "NA", "NA"] + properties + ["NA", "NA", "NA"] + [rf"{file}"])
             else:
                 properties = extract_values_chrom(file)
-                if isinstance(properties, list) and len(properties) == 3 and all(0 < float(val) < 1 for val in properties):
+                if isinstance(properties, list) and len(properties) == 3:
                     row.extend(properties + ["NA", "NA", "NA", "NA", rf"{file}"])       
                 
     if isinstance(row, list) and len(row) == 14:
