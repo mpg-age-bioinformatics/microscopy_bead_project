@@ -17,7 +17,7 @@ jobs:
         echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin docker.io
         docker buildx create --name mybuilder --driver docker-container --bootstrap --use
         docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-        docker buildx build --platform linux/amd64 --no-cache -t docker.io/mpgagebioinformatics/mcs_bead_proj:latest --push .
+        docker buildx build --platform linux/amd64,linux/arm64 --no-cache -t docker.io/mpgagebioinformatics/mcs_bead_proj:latest --push .
 
     - name: Set Success env
       run: echo "GITHUB_SHA_SHORT=$(echo $GITHUB_SHA | cut -c 1-8)" >> $GITHUB_ENV
