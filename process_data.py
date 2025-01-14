@@ -4,6 +4,7 @@ import glob
 import re
 import shutil
 import argparse
+import pandas as pd
 from datetime import datetime
 
 print("Starts Data Processing")
@@ -76,7 +77,7 @@ def extract_values_chrom(file_path):
         with open(file_path, 'r') as file:
             for line in file:
                 # Check if we are in the "Calibrated distances" section
-                if "Calibrated distances" in line:
+                if ("calibrated distances" in line.lower() and "uncalibrated distances" not in line.lower()):
                     target_section = True
                     continue
                     
@@ -87,7 +88,9 @@ def extract_values_chrom(file_path):
         if target_line is None:
             return None
                     
-        values = re.findall(r"\b\d+\.\d+\b(?=\s*\()", target_line) 
+        values = re.findall(r"\b\d+\.\d+\b(?=\s*\()", target_line)
+        if not values:
+            values = re.findall(r"\b\d+\.\d+\b", target_line)
         values = [float(value) for value in values]
         return values
     except:
@@ -109,6 +112,7 @@ fetch_dir = f"{root_dir}/extracted"
 backup_dir = f"{root_dir}/backup"
 html_dir = f"{fetch_dir}/html"
 csv_file = f"{fetch_dir}/records.csv"
+excel_file = f"{fetch_dir}/records.xlsx"
 unprocessed_file = f"{fetch_dir}/unprocessed.txt"
 dataless_file = f"{fetch_dir}/dataless.txt"
 
@@ -152,7 +156,7 @@ open(dataless_file, "w").close()
 open(unprocessed_file, "w").writelines(file + '\n' for file in untracked_files)
 
 # Extract values from valid files and store to records.csv
-data_pattern = r"\d{8}_M.*?_O.*?_T.*?_S.*?_B\d+"
+data_pattern = r"\d{8}_M[^_]*_O[^_]*_T[^_]*_S[^_]*_B\d+"
 
 for file in valid_files:
     matches = re.findall(data_pattern, file)
@@ -181,5 +185,9 @@ for file in valid_files:
             writer.writerow(row)
     else:
         open(dataless_file, "a").write(f"{file}\n")
+
+# Geneate exel file from the csv file
+df = pd.read_csv(csv_file)
+df.to_excel(excel_file, index=False)
 
 print("Finished Data Processing")
