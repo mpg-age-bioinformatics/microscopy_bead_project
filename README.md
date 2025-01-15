@@ -17,32 +17,17 @@ Create a data folder where the input data should be stored
 mkdir -p ~/mcs_bead_project/data
 ```
 
-Please store all your input data inside `~/mcs_bead_project/data` with proper format.
-
-#### Build Docker Image
-
-Clone `microscope_bead_project` repo
-```
-git clone https://github.molgen.mpg.de/mpg-age-bioinformatics/microscopy_bead_project.git
-```
-or download the repo
-
-Navigate to the repo directory (e.g. `cd microscope_bead_project`) and the run docker build:
-```
-docker build -t mcs_bead_proj .
-```
+Please store all your input data inside `~/mcs_bead_project/data` with proper format. Of course, you can choose a different data folder of your preference. However, you have to modify the commands accordingly in that case.
 
 #### Run Docker Container
+```
+docker run -d --rm --name mcs_bead_proj -p 8050:8050 -v ~/mcs_bead_project:/mcs_bead_project mpgagebioinformatics/mcs_bead_proj:stable
+```
+This will fetch target data to a CSV file (in `~/mcs_bead_project/extracted/records.csv`, additionaly an excel file in the same location), generate base html figures (in `~/mcs_bead_project/extracted/`) and web application accessible through: http://localhost:8050/
 
-```
-docker run -d --rm --name mcs_bead_proj -p 8050:8050 -v ~/mcs_bead_project:/mcs_bead_project mcs_bead_proj
-```
-This will fetch target data to a CSV file (in `~/mcs_bead_project/extracted/records.csv`), generate base html figures (in `~/mcs_bead_project/extracted/`) and web application accessible through: http://localhost:8050/
-
-To stop the running container:
-```
-docker stop mcs_bead_proj
-```
+If you prefer a different data directory rather than `~/mcs_bead_project/data`, please modify `~/mcs_bead_project` in the command.
+You can change `stable` tag to `latest`, or a tag of your preference (image repo: https://hub.docker.com/r/mpgagebioinformatics/mcs_bead_proj).
+Also, can remove the `-d` flag to get the state/logs of the running container.
 
 #### Update/Add Data
 
@@ -51,14 +36,30 @@ After adding or updating data in `~/mcs_bead_project/data` directory run the fol
 docker restart mcs_bead_proj
 ```
 
+#### Stop Docker Container
+
+To stop the running container:
+```
+docker stop mcs_bead_proj
+```
+
 #### Development
+
+Clone `microscope_bead_project` repo
+```
+git clone https://github.com/mpg-age-bioinformatics/microscopy_bead_project.git
+```
+or download the repo
+
+Navigate to the repo directory (e.g. `cd microscope_bead_project`) and the run docker build:
+```
+docker build -t mcs_bead_proj .
+```
 
 Mounting the scripts would enable to run the app in the development mode:
 ```
-docker run -d --rm --name mcs_bead_proj -p 8050:8050 -v $(pwd):/app -v ~/mcs_bead_project:/mcs_bead_project mcs_bead_proj
+docker run --rm --name mcs_bead_proj -p 8050:8050 -v $(pwd):/app -v ~/mcs_bead_project:/mcs_bead_project mcs_bead_proj
 ```
-
-Can remove the `-d` flag to get the state/logs of the running container.
 
 ### Components
 
@@ -80,6 +81,7 @@ All important extracted files fetched from the input data will be stored in `~/m
 
 `extracted` directory contains the following:
 - `records.csv`: primary file that stores all the fetched records from the input directory
+- `records.xlsx`: the same records in an excel file
 - `dataless.txt`: contains directories where no target data was found
 - `unprocessed.txt`: contains directories that could not be processed to fetch data
 - `figures.html`: contains base figures in one html file
