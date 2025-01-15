@@ -63,6 +63,19 @@ docker run --rm --name mcs_bead_proj -p 8050:8050 -v $(pwd):/app -v ~/mcs_bead_p
 
 ### Components
 
+#### Data Preparation
+
+This program extracts the data from the excel (`.xls`) files, stored in the `data` folder.
+
+The naming scheme, the extractor will look for is: `<date>_M<microscope>_O<objective>_T<test>_S<bead_size>_B<bead_number>`. Either the filename itself or any parent folders of the file should contain the naming scheme. For example, from both of the followings, data can be extracted:
+```
+/Path/A/B/C/20250108_MAndorDragonfly_O100x1.45_TChromDual_S1.0_B0_other_text.xls
+/Path/20250108_MAndorDragonfly_O100x1.45_TChromDual_S1.0_B0/A/B/file.xls
+```
+
+The simplest way of preparing data possibly be to just modify the folder name in `Bead` level directory that complies with `<date>_M<microscope>_O<objective>_T<test>_S<bead_size>_B<bead_number>` format, and leave the rest as it is.
+Also, please note, the <date> should contain the format of `YYYYMMDD`.
+
 #### Microscopy Bead Project App
 
 Web app can be accessed from your browser with: http://localhost:8050/
