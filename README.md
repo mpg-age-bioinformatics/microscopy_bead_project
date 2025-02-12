@@ -14,24 +14,24 @@ Prerequisite: Docker
 
 Create a data folder where the input data should be stored
 ```
-mkdir -p ~/mcs_bead_project/data
+mkdir -p /Volumes/group_fi/group/Microscopy/Metrology/mcs_bead_project/data
 ```
 
 Please store all your input data inside `~/mcs_bead_project/data` with proper format. Of course, you can choose a different data folder of your preference. However, you have to modify the commands accordingly in that case.
 
 #### Run Docker Container
 ```
-docker run -d --rm --name mcs_bead_proj -p 8050:8050 -v ~/mcs_bead_project:/mcs_bead_project mpgagebioinformatics/mcs_bead_proj:stable
+docker run -d --rm --name mcs_bead_proj -p 8050:8050 -v /Volumes/group_fi/group/Microscopy/Metrology/mcs_bead_project:/mcs_bead_project mpgagebioinformatics/mcs_bead_proj:stable
 ```
-This will fetch target data to a CSV file (in `~/mcs_bead_project/extracted/records.csv`, additionaly an excel file in the same location), generate base html figures (in `~/mcs_bead_project/extracted/`) and web application accessible through: http://localhost:8050/
+This will fetch target data to a CSV file (in `/mcs_bead_project/extracted/records.csv`, additionaly an excel file in the same location), generate base html figures (in `/mcs_bead_project/extracted/`) and web application accessible through: http://localhost:8050/
 
-If you prefer a different data directory rather than `~/mcs_bead_project/data`, please modify `~/mcs_bead_project` in the command.
+If you prefer a different data directory rather than `/mcs_bead_project/data`, please modify `/mcs_bead_project` in the command.
 You can change `stable` tag to `latest`, or a tag of your preference (image repo: https://hub.docker.com/r/mpgagebioinformatics/mcs_bead_proj).
 Also, can remove the `-d` flag to get the state/logs of the running container.
 
 #### Update/Add Data
 
-After adding or updating data in `~/mcs_bead_project/data` directory run the following to get the latest ouputs:
+After adding or updating data in `/mcs_bead_project/data` directory run the following to get the latest ouputs:
 ```
 docker restart mcs_bead_proj
 ```
