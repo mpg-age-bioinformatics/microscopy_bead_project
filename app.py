@@ -136,7 +136,7 @@ def update_output(n_clicks, microscope, objective, test, bead_size, bead_number,
                             html.Img(
                                 src=f"/images/{image}",  # Replace with actual image path logic
                                 title=os.path.basename(image),
-                                style={"width": "200px", "margin": "10px"}
+                                style={"max-width": "400px", "max-height": "400px", "margin": "10px", "object-fit": "contain"}
                             )
                             for image in get_image_paths(bead_path)
                         ],
