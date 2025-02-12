@@ -17,17 +17,22 @@ Create a data folder where the input data should be stored
 mkdir -p /Volumes/group_fi/group/Microscopy/Metrology/mcs_bead_project/data
 ```
 
-Please store all your input data inside `~/mcs_bead_project/data` with proper format. Of course, you can choose a different data folder of your preference. However, you have to modify the commands accordingly in that case.
+Please store all your input data inside `data` directory with proper format ([check data preparation](https://github.com/mpg-age-bioinformatics/microscopy_bead_project/?tab=readme-ov-file#data-preparation)). Of course, you can choose a different data folder of your preference. However, you have to modify the commands accordingly in that case.
 
 #### Run Docker Container
 ```
 docker run -d --rm --name mcs_bead_proj -p 8050:8050 -v /Volumes/group_fi/group/Microscopy/Metrology/mcs_bead_project:/mcs_bead_project mpgagebioinformatics/mcs_bead_proj:stable
 ```
-This will fetch target data to a CSV file (in `/mcs_bead_project/extracted/records.csv`, additionaly an excel file in the same location), generate base html figures (in `/mcs_bead_project/extracted/`) and web application accessible through: http://localhost:8050/
+This will fetch target data to a CSV file (in `extracted/records.csv`, additionaly an excel file in the same location), generate base html figures (in `extracted/`) and web application accessible through: http://localhost:8050/
 
-If you prefer a different data directory rather than `/mcs_bead_project/data`, please modify `/mcs_bead_project` in the command.
 You can change `stable` tag to `latest`, or a tag of your preference (image repo: https://hub.docker.com/r/mpgagebioinformatics/mcs_bead_proj).
 Also, can remove the `-d` flag to get the state/logs of the running container.
+
+If there is a new image available, you can update the image with the follwings:
+
+- Stop the current container: `docker stop mcs_bead_proj`
+- Pull the updated image: `docker pull mpgagebioinformatics/mcs_bead_proj:stable`
+- Run the previously stated `docker run` command
 
 #### Update/Add Data
 
@@ -56,7 +61,7 @@ Navigate to the repo directory (e.g. `cd microscope_bead_project`) and the run d
 docker build -t mcs_bead_proj .
 ```
 
-Mounting the scripts would enable to run the app in the development mode:
+Mounting the scripts would enable to run the app in the development mode (change `~/mcs_bead_project` to your preferred path):
 ```
 docker run --rm --name mcs_bead_proj -p 8050:8050 -v $(pwd):/app -v ~/mcs_bead_project:/mcs_bead_project mcs_bead_proj
 ```
