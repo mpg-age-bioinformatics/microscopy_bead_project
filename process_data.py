@@ -136,8 +136,11 @@ current_b_dir = f"{backup_dir}/{timestamp}"
 os.makedirs(current_b_dir, exist_ok=True)
 
 # Copy extracted to a backup and fix creation time
-shutil.copytree(fetch_dir, current_b_dir, dirs_exist_ok=True)
-os.utime(current_b_dir, (ctime, ctime))
+try:
+    shutil.copytree(fetch_dir, current_b_dir, dirs_exist_ok=True)
+    os.utime(current_b_dir, (ctime, ctime))
+except Exception as e:
+    pass
 
 # Setup CSV file with defined header
 csv_header = ["date","microscope","objective","test","bead_size","bead_number","far_red","red","uv","dual","x","y","z","file_path"]
