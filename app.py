@@ -1,16 +1,39 @@
 import dash
 import os
+import logging
 from dash import html, dash_table, dcc, Input, Output, State, Dash
 import pandas as pd
 import plotly.express as px
 from flask import send_file
 import dash_bootstrap_components as dbc
 from helpers import generate_fig_data, get_image_paths
+from log_config import configure_logging
 
 # Define values
 base_data_path = "/mcs_bead_project/data"
-df = pd.read_csv('/mcs_bead_project/extracted/records.csv')
-df = df.assign(date=lambda x: pd.to_datetime(x['date'], format='%Y%m%d'))
+records_path = '/mcs_bead_project/extracted/records.csv'
+record_columns = [
+    "date", "microscope", "objective", "test", "bead_size", "bead_number",
+    "far_red", "red", "uv", "dual", "x", "y", "z", "file_path"
+]
+
+configure_logging()
+logger = logging.getLogger("app")
+
+# Load records defensively so the web app still starts (with empty filters)
+# even if extraction produced no/invalid data, rather than crashing on import.
+try:
+    df = pd.read_csv(records_path)
+    if df.empty:
+        logger.warning("records.csv has no data rows; starting app with empty filters.")
+except FileNotFoundError:
+    logger.error("records.csv not found at %s; starting app with empty dataset.", records_path)
+    df = pd.DataFrame(columns=record_columns)
+except Exception:
+    logger.exception("Failed to read %s; starting app with empty dataset.", records_path)
+    df = pd.DataFrame(columns=record_columns)
+
+df = df.assign(date=lambda x: pd.to_datetime(x['date'], format='%Y%m%d', errors='coerce'))
 
 microscope_list = df['microscope'].unique()
 objective_list = df['objective'].unique()
@@ -112,10 +135,18 @@ app.layout = html.Div([
 def update_output(n_clicks, microscope, objective, test, bead_size, bead_number, start_date, end_date, consider_limit, warning_percentage):
     if not n_clicks:
         return html.Div("Submit to get output!", style={"margin-top": "15px", "margin-left": "15px"})
-    
+
+    logger.info(
+        "Output request: microscope=%s objective=%s test=%s bead_size=%s bead_number=%s "
+        "dates=%s..%s consider_limit=%s warning_pct=%s",
+        microscope, objective, test, bead_size, bead_number,
+        start_date, end_date, consider_limit, warning_percentage
+    )
+
     fig, considerd_df, change_df, fig_name, warning = generate_fig_data(df, microscope, objective, test, bead_size, bead_number, start_date, end_date, consider_limit, warning_percentage)
 
     if fig is None or considerd_df is None or change_df is None:
+        logger.warning("No data/figure produced for the requested filters.")
         return html.Div("No data found with the inputs!", style={"margin-top": "15px", "margin-left": "15px"})
 
     figure_tab = dcc.Graph(
@@ -222,4 +253,5 @@ def update_output(n_clicks, microscope, objective, test, bead_size, bead_number,
 
 
 if __name__ == '__main__':
+    logger.info("Starting Dash app on http://0.0.0.0:8050")
     app.run_server(debug=True, host='0.0.0.0', port=8050)

@@ -1,8 +1,11 @@
 import os
 import glob
+import logging
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 
 # Filter dataframe
@@ -12,7 +15,8 @@ def fetch_df(df, microscope=None, objective=None, test=None, bead_size=None, bea
     try:
         if datetime.strptime(start_date, '%Y-%m-%d') and datetime.strptime(end_date, '%Y-%m-%d'):
             df = df[(df['date'] >= start_date) & (df['date'] <= end_date)]
-    except:
+    except Exception:
+        # No/invalid date range supplied: keep df unfiltered by date.
         pass
     if microscope is not None:
         df = df[df['microscope'] == microscope]
@@ -140,7 +144,12 @@ def generate_fig_data(df, microscope=None, objective=None, test=None, bead_size=
         )
 
         return fig, fdf, change_df, fig_name, warning
-    except:
+    except Exception:
+        logger.exception(
+            "generate_fig_data failed (microscope=%s, objective=%s, test=%s, "
+            "bead_size=%s, bead_number=%s); returning no data.",
+            microscope, objective, test, bead_size, bead_number
+        )
         return None, None, None, None, None
     
 # Get the list of image relative paths

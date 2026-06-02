@@ -3,11 +3,12 @@ import csv
 import glob
 import re
 import shutil
+import logging
 import argparse
 import pandas as pd
 from datetime import datetime
 
-print("Starts Data Processing")
+from log_config import configure_logging
 
 # Functions for differnet operations
 def get_meta_values(input_str):
@@ -21,7 +22,8 @@ def get_meta_values(input_str):
         bead_number = input_str.split('_B')[-1].split('_')[0] if '_B' in input_str else "NA"
 
         return [date, microscope, objective, test, bead_size, bead_number]
-    except:
+    except Exception as e:
+        logging.getLogger("process_data").debug("get_meta_values failed for %r: %s", input_str, e)
         return None
 
 def extract_values_psfo(file_path):
@@ -63,7 +65,8 @@ def extract_values_psfo(file_path):
         
         return values
 
-    except:
+    except Exception as e:
+        logging.getLogger("process_data").debug("extract_values_psfo failed for %s: %s", file_path, e)
         return None
 
 def extract_values_chrom(file_path):
@@ -93,7 +96,8 @@ def extract_values_chrom(file_path):
             values = re.findall(r"\b\d+\.\d+\b", target_line)
         values = [float(value) for value in values]
         return values
-    except:
+    except Exception as e:
+        logging.getLogger("process_data").debug("extract_values_chrom failed for %s: %s", file_path, e)
         return None
 
 
@@ -121,13 +125,21 @@ os.makedirs(fetch_dir, exist_ok=True)
 os.makedirs(backup_dir, exist_ok=True)
 os.makedirs(html_dir, exist_ok=True)
 
+# Configure logging (stdout, captured per-container by `docker logs`)
+configure_logging()
+logger = logging.getLogger("process_data")
+logger.info("Starting data processing (directory=%s, backup_limit=%s)", root_dir, backup_limit)
+
 # Delete older backups if there are more than specific number of backups
 b_dir = [d for d in glob.glob(f"{backup_dir}/*") if os.path.isdir(d)]
 b_dir.sort(key=os.path.getctime)
 if len(b_dir) > backup_limit:
-    # Remove older directories
+    # Remove older directories (use rmtree: backup dirs are non-empty)
     for dir_to_delete in b_dir[:-backup_limit]:
-        os.rmdir(dir_to_delete)
+        try:
+            shutil.rmtree(dir_to_delete)
+        except Exception as e:
+            logger.warning("Could not remove old backup %s: %s", dir_to_delete, e)
 
 # Create a directory to store backup of existing files 
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -140,7 +152,7 @@ try:
     shutil.copytree(fetch_dir, current_b_dir, dirs_exist_ok=True)
     os.utime(current_b_dir, (ctime, ctime))
 except Exception as e:
-    pass
+    logger.warning("Could not back up extracted dir to %s: %s", current_b_dir, e)
 
 # Setup CSV file with defined header
 csv_header = ["date","microscope","objective","test","bead_size","bead_number","far_red","red","uv","dual","x","y","z","file_path"]
@@ -153,6 +165,10 @@ xls_files = glob.glob(f"{data_dir}/**/*.xls", recursive=True)
 pattern = r".*\d{8}_M.*_O.*_T.*_S.*_B.*"
 valid_files = [file for file in xls_files if re.match(pattern, file)]
 untracked_files = [file for file in xls_files if not re.match(pattern, file)]
+logger.info(
+    "Found %d .xls files: %d match the naming scheme, %d untracked (see unprocessed.txt).",
+    len(xls_files), len(valid_files), len(untracked_files)
+)
 
 # Write to unprocessed_file and create dataless file
 open(dataless_file, "w").close()
@@ -160,6 +176,9 @@ open(unprocessed_file, "w").writelines(file + '\n' for file in untracked_files)
 
 # Extract values from valid files and store to records.csv
 data_pattern = r"\d{8}_M[^_]*_O[^_]*_T[^_]*_S[^_]*_B\d+"
+
+extracted_count = 0
+dataless_count = 0
 
 for file in valid_files:
     matches = re.findall(data_pattern, file)
@@ -186,11 +205,26 @@ for file in valid_files:
         with open(csv_file, 'a', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(row)
+        extracted_count += 1
     else:
         open(dataless_file, "a").write(f"{file}\n")
+        dataless_count += 1
+
+logger.info(
+    "Extraction complete: %d records written to records.csv, %d files had no target data (see dataless.txt).",
+    extracted_count, dataless_count
+)
+if extracted_count == 0:
+    logger.warning(
+        "No records were extracted. The app will start but show no data. "
+        "Check that file contents/format match the expected parser (see dataless.txt/unprocessed.txt)."
+    )
 
 # Geneate exel file from the csv file
-df = pd.read_csv(csv_file)
-df.to_excel(excel_file, index=False)
+try:
+    df = pd.read_csv(csv_file)
+    df.to_excel(excel_file, index=False)
+except Exception as e:
+    logger.warning("Could not write Excel file %s: %s", excel_file, e)
 
-print("Finished Data Processing")
+logger.info("Finished data processing")
