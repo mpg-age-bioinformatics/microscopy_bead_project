@@ -35,8 +35,11 @@ except Exception:
 # Generate html
 microscope_list = df['microscope'].unique()
 
-# All figures in one html
-html_all = """
+# All figures in one html.
+# Stream figures straight to the file as they are generated rather than
+# accumulating them in one big in-memory string: this file grows with the
+# dataset, so holding it all in memory was an unbounded memory consumer.
+html_header = """
 <!DOCTYPE html>
 <html>
 <head>
@@ -46,6 +49,20 @@ html_all = """
 <body>
     <h1>Microscopy Bead Project</h1><br>
 """
+
+html_footer = """
+</body>
+</html>
+"""
+
+# Open the combined figures.html once for streaming writes. If it can't be
+# opened we still generate the individual per-figure files below.
+try:
+    html_all_fh = open(html_all_file, "w")
+    html_all_fh.write(html_header)
+except Exception:
+    logger.exception("Could not open %s for writing; continuing without combined HTML.", html_all_file)
+    html_all_fh = None
 
 # Loop over the perameters
 processed = 0
@@ -94,10 +111,13 @@ for microscope in microscope_list:
             with open(f"{html_dir}/{fig_name}.html", "w") as f:
                 f.write(html_content)
 
-            # Add figure to html_all
-            html_all += f"<div>{figure_html}</div>"
-            html_all += "<h4>Deviation Table</h4>"
-            html_all += f"<div>{table_html}</div>"
+            # Stream this figure into the combined HTML instead of holding the
+            # whole document in memory. Both strings are already built above, so
+            # we never write a partially-rendered figure.
+            if html_all_fh is not None:
+                html_all_fh.write(f"<div>{figure_html}</div>")
+                html_all_fh.write("<h4>Deviation Table</h4>")
+                html_all_fh.write(f"<div>{table_html}</div>")
             processed += 1
         except Exception:
             logger.exception(
@@ -109,16 +129,13 @@ for microscope in microscope_list:
 
 logger.info("HTML generation: %d figures written, %d skipped.", processed, skipped)
 
-# generate figures.html with html_all content
-html_all += """
-</body>
-</html>
-"""
-
-try:
-    with open(html_all_file, "w") as f:
-        f.write(html_all)
-except Exception:
-    logger.exception("Could not write %s; continuing.", html_all_file)
+# Close out the combined figures.html (write footer, then close the handle).
+if html_all_fh is not None:
+    try:
+        html_all_fh.write(html_footer)
+    except Exception:
+        logger.exception("Could not finish writing %s; continuing.", html_all_file)
+    finally:
+        html_all_fh.close()
 
 logger.info("Finished generating HTML")
