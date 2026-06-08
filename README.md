@@ -19,24 +19,25 @@ mkdir -p /Volumes/group_fi/group/Microscopy/Metrology/mcs_bead_project/data
 
 Please store all your input data inside `data` directory with proper format ([check data preparation](https://github.com/mpg-age-bioinformatics/microscopy_bead_project/?tab=readme-ov-file#data-preparation)). Of course, you can choose a different data folder of your preference. However, you have to modify the commands accordingly in that case.
 
-#### Run Docker Container
+#### Run Docker Container (using the latest stable image)
 ```
+docker stop mcs_bead_proj
+docker pull mpgagebioinformatics/mcs_bead_proj:stable
 docker run -d --rm --name mcs_bead_proj -p 8050:8050 -v /Volumes/group_fi/group/Microscopy/Metrology/mcs_bead_project:/mcs_bead_project mpgagebioinformatics/mcs_bead_proj:stable
 ```
-This will fetch target data to a CSV file (in `extracted/records.csv`, additionaly an excel file in the same location), generate base html figures (in `extracted/`) and web application accessible through: http://localhost:8050/
+This will fetch target data to a CSV file (in `extracted/records.csv`), generate base html figures (in `extracted/`) and web application accessible through: http://localhost:8050/
 
 You can change `stable` tag to `latest`, or a tag of your preference (image repo: https://hub.docker.com/r/mpgagebioinformatics/mcs_bead_proj).
 Also, can remove the `-d` flag to get the state/logs of the running container.
 
-If there is a new image available, you can update the image with the follwings:
-
-- Stop the current container: `docker stop mcs_bead_proj`
-- Pull the updated image: `docker pull mpgagebioinformatics/mcs_bead_proj:stable`
-- Run the previously stated `docker run` command
+If necessary, you can check the live logs with:
+```
+docker logs -f mcs_bead_proj
+```
 
 #### Update/Add Data
 
-After adding or updating data in `/mcs_bead_project/data` directory run the following to get the latest ouputs:
+After adding or updating data in `/mcs_bead_project/data` directory you can re-run the earlier three docker commands or simply restart to get the latest ouputs:
 ```
 docker restart mcs_bead_proj
 ```
