@@ -129,7 +129,7 @@ By default last 100 extracted backups would be stored. If something goes wrong, 
 #### Cannot open http://localhost:8050/
 
 1. **Is the container running?** Run `docker ps` and look for `mcs_bead_proj`. If it is not listed, it has stopped.
-2. **Give the first run time.** On startup the container scans all data and builds the records *before* the web app starts — this can take a few minutes on large or network folders. The page is only available once that finishes.
+2. **Give the first run time.** On startup the container scans all data and builds the records *before* the web app starts — this can take some time on large or network folders. The page is only available once that finishes.
 3. **Check the logs:** `docker logs mcs_bead_proj` (add `-f` to follow live). Any error or crash is reported there.
 4. **Crashed and disappeared?** The `docker run` command uses `--rm`, so a crashed container is removed automatically. Re-run **without** `-d` to watch the live output, or read the logs before it exits.
 5. **Port already in use:** if something else uses port 8050, map a different one, e.g. `-p 8051:8050`, and open http://localhost:8051/ (or simply free up the 8050 port by stoping the other container/service).
