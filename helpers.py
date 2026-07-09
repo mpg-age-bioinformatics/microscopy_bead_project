@@ -42,7 +42,8 @@ def generate_fig_data(df, microscope=None, objective=None, test=None, bead_size=
             return None, None, None, None, None
 
         # defined values
-        columns_to_mean = ['far_red', 'red', 'uv', 'dual', 'x', 'y', 'z']
+        columns_to_mean = ['far_red', 'red', 'uv', 'dual', 'x', 'y', 'z',
+                            'uniformity', 'field_uniformity', 'centering_accuracy']
         warning = False
         sd_data = []
         color_map = {
@@ -52,7 +53,10 @@ def generate_fig_data(df, microscope=None, objective=None, test=None, bead_size=
             'dual': 'green',
             'x': 'purple',
             'y': 'cyan',
-            'z': 'magenta'
+            'z': 'magenta',
+            'uniformity': 'saddlebrown',
+            'field_uniformity': 'teal',
+            'centering_accuracy': 'darkkhaki'
         }
 
         # get fig name
@@ -122,7 +126,13 @@ def generate_fig_data(df, microscope=None, objective=None, test=None, bead_size=
         else:
             title_content = f"🟢🟢🟢 {fig_name} 🟢🟢🟢"
 
-        mean_label = "FWHM µm" if test == "PSFo" else "Distance in µm"
+        if test == "PSFo":
+            mean_label = "FWHM µm"
+        elif test and "Hom" in test:
+            # Homogeneity / Centricity metrics are percentages.
+            mean_label = "Percentage (%)"
+        else:
+            mean_label = "Distance in µm"
         # generate figure
         fig = px.line(
             proc_df,

@@ -14,7 +14,8 @@ base_data_path = "/mcs_bead_project/data"
 records_path = '/mcs_bead_project/extracted/records.csv'
 record_columns = [
     "date", "microscope", "objective", "test", "bead_size", "bead_number",
-    "far_red", "red", "uv", "dual", "x", "y", "z", "file_path"
+    "far_red", "red", "uv", "dual", "x", "y", "z",
+    "uniformity", "field_uniformity", "centering_accuracy", "file_path"
 ]
 
 configure_logging()
@@ -35,11 +36,24 @@ except Exception:
 
 df = df.assign(date=lambda x: pd.to_datetime(x['date'], format='%Y%m%d', errors='coerce'))
 
-microscope_list = df['microscope'].unique()
-objective_list = df['objective'].unique()
-test_list = df['test'].unique()
-bead_size_list = df['bead_size'].unique()
-bead_number_list = df['bead_number'].unique()
+def to_options(series):
+    # Build dropdown options, dropping NaN so the dropdown never receives a
+    # null option. Hom/CenHom rows have empty bead_size/bead_number (read as
+    # NaN), which Dash rejects as an invalid option. Labels are stringified
+    # (Dash expects string/number labels), values kept native for filtering.
+    def fmt(v):
+        # NaN in a column forces float dtype, so whole numbers arrive as e.g.
+        # 7.0; show them as "7" rather than "7.0".
+        if isinstance(v, float) and v.is_integer():
+            return str(int(v))
+        return str(v)
+    return [{'label': fmt(v), 'value': v} for v in series.dropna().unique()]
+
+microscope_options = to_options(df['microscope'])
+objective_options = to_options(df['objective'])
+test_options = to_options(df['test'])
+bead_size_options = to_options(df['bead_size'])
+bead_number_options = to_options(df['bead_number'])
 
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -68,11 +82,11 @@ app.layout = html.Div([
                         dbc.Card(
                             [
                                 html.H5("Filters", style={"margin-top": 10}),
-                                html.Label('Microscope'), dcc.Dropdown( id='opt-microscope', options=[{'label': item, 'value': item} for item in microscope_list]),
-                                html.Label('Objective'), dcc.Dropdown( id='opt-objective', options=[{'label': item, 'value': item} for item in objective_list]),
-                                html.Label('Test'), dcc.Dropdown( id='opt-test', options=[{'label': item, 'value': item} for item in test_list]),
-                                html.Label('Bead Size'), dcc.Dropdown( id='opt-bead-size', options=[{'label': item, 'value': item} for item in bead_size_list]),
-                                html.Label('Bead Number'), dcc.Dropdown( id='opt-bead-number', options=[{'label': item, 'value': item} for item in bead_number_list]),
+                                html.Label('Microscope'), dcc.Dropdown( id='opt-microscope', options=microscope_options),
+                                html.Label('Objective'), dcc.Dropdown( id='opt-objective', options=objective_options),
+                                html.Label('Test'), dcc.Dropdown( id='opt-test', options=test_options),
+                                html.Label('Bead Size'), dcc.Dropdown( id='opt-bead-size', options=bead_size_options),
+                                html.Label('Bead Number'), dcc.Dropdown( id='opt-bead-number', options=bead_number_options),
                                 # html.Label('Start Date'), dcc.DatePickerSingle(id='date-picker', placeholder='Select a date', style={'margin-bottom': '20px'}),
                                 html.Label('Date Range'), html.Br(), dcc.DatePickerRange(id='opt-date', display_format='YYYY-MM-DD'),
                                 html.Label('Consider Previous Values for Line Deviation'), html.Br(), dcc.Input(id='opt-consider-limit', type='number', value=3, min=1, max=50),

@@ -69,6 +69,62 @@ def extract_values_psfo(file_path):
         logging.getLogger("process_data").debug("extract_values_psfo failed for %s: %s", file_path, e)
         return None
 
+def normalize_test(test):
+    """Map a legacy Homogeneity test token to the canonical CenHom form.
+
+    The canonical scheme is `TCenHom<Slide><Laser>[<Detector>]`; legacy exports
+    use the `THom...` prefix (get_meta_values strips the leading T, so here we
+    receive `Hom...` / `CenHom...`). The rule is: legacy prefix `Hom` -> `CenHom`,
+    keeping whatever slide/laser/detector tokens follow:
+
+        Hom405        -> CenHomFITC405      (bare laser-only form: assume FITC slide)
+        Hom488        -> CenHomFITC488
+        HomFITC405    -> CenHomFITC405
+        HomFITCZyla   -> CenHomFITCZyla
+        HomChromaSona -> CenHomChromaSona
+
+    Anything already in `CenHom...` form, or any non-Hom test, is returned
+    unchanged. This lets both naming forms coexist while the app always
+    shows/filters on the canonical CenHom value.
+    """
+    if not test or test.startswith("CenHom"):
+        return test
+    if test.startswith("Hom"):
+        rest = test[3:]
+        # Bare laser-only legacy form (Hom405 / Hom488) carries no slide token;
+        # assume the FITC slide so it folds into the canonical CenHomFITC<laser>.
+        if re.fullmatch(r'\d+', rest):
+            return f"CenHomFITC{rest}"
+        return f"CenHom{rest}"
+    return test
+
+def extract_values_hom(file_path):
+    """Get Uniformity / Field Uniformity / Centering Accuracy from a Hom stats file.
+
+    The MetroloJ_QC field-illumination *_stats.xls has a "Results" block whose
+    header starts with "Filters combination/set"; the immediately following
+    tab-delimited row holds the values at columns 1, 2, 3.
+    """
+    try:
+        if not os.path.exists(file_path):
+            return None
+
+        header_seen = False
+        with open(file_path, 'r') as f:
+            for line in f:
+                if line.startswith("Filters combination/set"):
+                    header_seen = True
+                    continue
+                if header_seen:
+                    parts = line.rstrip("\n").split("\t")
+                    if len(parts) >= 4:
+                        return [float(parts[1]), float(parts[2]), float(parts[3])]
+                    return None
+        return None
+    except Exception as e:
+        logging.getLogger("process_data").debug("extract_values_hom failed for %s: %s", file_path, e)
+        return None
+
 def extract_values_chrom(file_path):
     """Get property values from the types of chrom"""
     try:
@@ -189,16 +245,33 @@ if len(b_dir) > backup_limit:
             logger.warning("Could not remove old backup %s: %s", dir_to_delete, e)
 
 # CSV header
-csv_header = ["date","microscope","objective","test","bead_size","bead_number","far_red","red","uv","dual","x","y","z","file_path"]
+csv_header = ["date","microscope","objective","test","bead_size","bead_number","far_red","red","uv","dual","x","y","z","uniformity","field_uniformity","centering_accuracy","file_path"]
 
 # Get xls files for processing
 xls_files = glob.glob(f"{data_dir}/**/*.xls", recursive=True)
+
+# Bead tests: require the full _S<bead_size>_B<bead_number> tokens.
 pattern = r".*\d{8}_M.*_O.*_T.*_S.*_B.*"
 valid_files = [f for f in xls_files if re.match(pattern, f)]
-untracked_files = [f for f in xls_files if not re.match(pattern, f)]
+
+# Homogeneity / Centricity tests (legacy _THom* or canonical _TCenHom*): these
+# have no _S/_B tokens. We only parse the per-channel *_stats.xls; the sibling
+# results.xls / intensityProfiles.xls are intermediate artifacts we skip (and
+# must NOT report as "unprocessed").
+hom_marker = re.compile(r'_T(?:CenHom|Hom)')
+valid_set = set(valid_files)
+hom_files = [f for f in xls_files
+             if f.endswith('_stats.xls') and hom_marker.search(f) and f not in valid_set]
+
+# Anything not recognised as bead or Hom-stats. Hom artifacts are silently
+# ignored; only genuinely unrecognised files go to unprocessed.txt.
+accounted = valid_set | set(hom_files)
+remaining = [f for f in xls_files if f not in accounted]
+untracked_files = [f for f in remaining if not hom_marker.search(f)]
+hom_skipped = [f for f in remaining if hom_marker.search(f)]
 logger.info(
-    "Found %d .xls files: %d match the naming scheme, %d untracked (see unprocessed.txt).",
-    len(xls_files), len(valid_files), len(untracked_files)
+    "Found %d .xls files: %d bead, %d Hom/CenHom stats, %d Hom artifacts skipped, %d untracked (see unprocessed.txt).",
+    len(xls_files), len(valid_files), len(hom_files), len(hom_skipped), len(untracked_files)
 )
 
 # Write the list of untracked files
@@ -226,20 +299,46 @@ with open(csv_file, 'w', newline='') as csv_fh, open(dataless_file, 'w') as data
             meta_values = get_meta_values(value)
             if isinstance(meta_values, list) and len(meta_values) == 6:
                 row.extend(meta_values)
+                # The three trailing "NA"s are the Hom-only columns
+                # (uniformity, field_uniformity, centering_accuracy), absent for
+                # bead tests.
                 if meta_values[3] == "PSFo":
                     properties = extract_values_psfo(path)
                     if isinstance(properties, list) and len(properties) == 3:
-                        row.extend(["NA", "NA", "NA", "NA"] + properties + [rf"{path}"])
+                        row.extend(["NA", "NA", "NA", "NA"] + properties + ["NA", "NA", "NA"] + [rf"{path}"])
                 elif meta_values[3] == "ChromDual":
                     properties = extract_values_chrom(path)
                     if isinstance(properties, list) and len(properties) == 1:
-                        row.extend(["NA", "NA", "NA"] + properties + ["NA", "NA", "NA"] + [rf"{path}"])
+                        row.extend(["NA", "NA", "NA"] + properties + ["NA", "NA", "NA"] + ["NA", "NA", "NA"] + [rf"{path}"])
                 else:
                     properties = extract_values_chrom(path)
                     if isinstance(properties, list) and len(properties) == 3:
-                        row.extend(properties + ["NA", "NA", "NA", "NA", rf"{path}"])
+                        row.extend(properties + ["NA", "NA", "NA", "NA"] + ["NA", "NA", "NA"] + [rf"{path}"])
 
-        if isinstance(row, list) and len(row) == 14:
+        if isinstance(row, list) and len(row) == 17:
+            writer.writerow(row)
+            extracted_count += 1
+        else:
+            dataless_fh.write(f"{path}\n")
+            dataless_count += 1
+
+    # Homogeneity / Centricity rows. Metadata comes from the folder two levels
+    # above the stats file (the parent of the *_data folder), which holds the
+    # clean session/channel name in both the Leica (Processed/...) and Olympus
+    # (flat) layouts. The *_data folder name itself can embed a contradictory
+    # acquisition token, so we deliberately don't parse it.
+    for path in hom_files:
+        meta_src = os.path.basename(os.path.dirname(os.path.dirname(path)))
+        meta_values = get_meta_values(meta_src)
+        row = []
+        if isinstance(meta_values, list) and len(meta_values) == 6:
+            meta_values[3] = normalize_test(meta_values[3])
+            properties = extract_values_hom(path)
+            if isinstance(properties, list) and len(properties) == 3:
+                # 7 bead/distance columns are NA; then the 3 Hom values.
+                row = meta_values + ["NA"] * 7 + properties + [rf"{path}"]
+
+        if isinstance(row, list) and len(row) == 17:
             writer.writerow(row)
             extracted_count += 1
         else:
