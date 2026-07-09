@@ -164,10 +164,19 @@ parser.add_argument('-d', '--directory', type=str, default=".", help="Path to th
 parser.add_argument('-b', '--backup', type=int, default=100, help="Backup number (optional, default: 100).")
 parser.add_argument('-e', '--excel-max-rows', type=int, default=100000,
                     help="Max record rows to still generate records.xlsx; above this it is skipped (optional, default: 100000). Set 0 to disable Excel.")
+parser.add_argument('-c', '--complete', action='store_true',
+                    help="Re-process ALL data from scratch and rewrite records.csv. "
+                         "By default (incremental) only files not already recorded are "
+                         "parsed and appended, which is much faster on restart. Use this "
+                         "after deletions/renames or to rebuild from scratch. Can also be "
+                         "enabled with the COMPLETE=true (or REFETCH=true) environment variable.")
 args = parser.parse_args()
 root_dir = args.directory
 backup_limit = args.backup
 excel_max_rows = args.excel_max_rows
+# Full re-fetch if the flag or the COMPLETE/REFETCH env var is set; otherwise incremental.
+_env_complete = (os.environ.get('COMPLETE', '') or os.environ.get('REFETCH', '')).strip().lower()
+complete = args.complete or _env_complete in ('1', 'true', 'yes', 'on')
 
 # Setup required paths
 data_dir = f"{root_dir}/data"
@@ -274,8 +283,75 @@ logger.info(
     len(xls_files), len(valid_files), len(hom_files), len(hom_skipped), len(untracked_files)
 )
 
-# Write the list of untracked files
-with open(unprocessed_file, "w") as f:
+# Decide incremental vs complete (full) processing.
+#
+# Incremental (default): only files whose path is not already recorded get
+# parsed, and their rows are APPENDED. Parsing/opening every .xls over the shared
+# network volume is the dominant cost as the dataset grows, so skipping the
+# already-known files makes a restart with little/no new data nearly instant.
+#
+# Complete (--complete or COMPLETE=true): re-parse everything and rewrite
+# records.csv from scratch -- needed after deletions/renames (incremental is
+# append-only and never removes rows for files that disappeared) or to rebuild.
+#
+# Safety: incremental only kicks in when an existing records.csv already uses the
+# current column schema; otherwise we force a full rewrite so old/new rows can
+# never be mixed.
+def read_seen_paths():
+    """Paths already accounted for: recorded rows + previously reported files."""
+    seen = set()
+    recorded = 0
+    try:
+        with open(csv_file, newline='') as f:
+            reader = csv.reader(f)
+            next(reader, None)  # skip header
+            for r in reader:
+                if r:
+                    seen.add(r[-1])  # file_path is the last column
+                    recorded += 1
+    except FileNotFoundError:
+        pass
+    for txt in (dataless_file, unprocessed_file):
+        try:
+            with open(txt) as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        seen.add(line)
+        except FileNotFoundError:
+            pass
+    return seen, recorded
+
+incremental = False
+existing_count = 0
+if not complete and os.path.exists(csv_file):
+    try:
+        with open(csv_file, newline='') as f:
+            existing_header = next(csv.reader(f), None)
+    except Exception:
+        existing_header = None
+    if existing_header == csv_header:
+        incremental = True
+    else:
+        logger.info("records.csv uses a different schema; doing a full re-fetch to rebuild it.")
+
+if incremental:
+    seen, existing_count = read_seen_paths()
+    valid_files = [f for f in valid_files if f not in seen]
+    hom_files = [f for f in hom_files if f not in seen]
+    untracked_files = [f for f in untracked_files if f not in seen]
+    logger.info(
+        "Incremental mode: %d already recorded; new to process -> %d bead, %d Hom, %d untracked.",
+        existing_count, len(valid_files), len(hom_files), len(untracked_files)
+    )
+else:
+    logger.info("Complete mode: processing all files and rewriting records.csv from scratch.")
+
+# Append in incremental mode, overwrite in complete mode.
+out_mode = 'a' if incremental else 'w'
+
+# Write (or append) the list of untracked files
+with open(unprocessed_file, out_mode) as f:
     f.writelines(p + '\n' for p in untracked_files)
 
 # Extract values from valid files and store to records.csv
@@ -287,9 +363,10 @@ dataless_count = 0
 # Open records.csv and dataless.txt once for the whole loop instead of
 # reopening them per row. On a network share each open/close is a round-trip,
 # so per-row reopening dominated the cost as the dataset grew.
-with open(csv_file, 'w', newline='') as csv_fh, open(dataless_file, 'w') as dataless_fh:
+with open(csv_file, out_mode, newline='') as csv_fh, open(dataless_file, out_mode) as dataless_fh:
     writer = csv.writer(csv_fh)
-    writer.writerow(csv_header)
+    if not incremental:
+        writer.writerow(csv_header)
 
     for path in valid_files:
         matches = re.findall(data_pattern, path)
@@ -345,13 +422,15 @@ with open(csv_file, 'w', newline='') as csv_fh, open(dataless_file, 'w') as data
             dataless_fh.write(f"{path}\n")
             dataless_count += 1
 
+# Total rows now in records.csv (existing kept rows + newly appended ones).
+total_records = existing_count + extracted_count
 logger.info(
-    "Extraction complete: %d records written to records.csv, %d files had no target data (see dataless.txt).",
-    extracted_count, dataless_count
+    "Extraction complete: %d new records (%d total in records.csv), %d files had no target data (see dataless.txt).",
+    extracted_count, total_records, dataless_count
 )
-if extracted_count == 0:
+if total_records == 0:
     logger.warning(
-        "No records were extracted. The app will start but show no data. "
+        "No records in records.csv. The app will start but show no data. "
         "Check that file contents/format match the expected parser (see dataless.txt/unprocessed.txt)."
     )
 
@@ -359,17 +438,21 @@ if extracted_count == 0:
 # (the app and HTML stages read records.csv, never the xlsx), so it must never
 # break the run -- any problem just logs and continues.
 #
+#   * In incremental mode with no new rows, records.csv is unchanged, so leave
+#     any existing records.xlsx as-is instead of rebuilding it.
 #   * If the dataset is larger than the configured limit, skip Excel entirely:
 #     building it would be slow and Excel itself caps at ~1.05M rows anyway.
 #   * Otherwise build it by streaming row-by-row with openpyxl's write_only mode
 #     so we never hold the whole workbook in memory (the old df.to_excel path
 #     materialised every cell as an object -> multi-GB spikes / OOM).
-if excel_max_rows <= 0:
+if incremental and extracted_count == 0 and os.path.exists(excel_file):
+    logger.info("No new records; leaving existing records.xlsx unchanged.")
+elif excel_max_rows <= 0:
     logger.info("Skipping records.xlsx (Excel generation disabled). Use records.csv.")
-elif extracted_count > excel_max_rows:
+elif total_records > excel_max_rows:
     logger.info(
         "Skipping records.xlsx: %d rows exceeds the limit of %d. Use records.csv for the full data.",
-        extracted_count, excel_max_rows
+        total_records, excel_max_rows
     )
 else:
     try:
@@ -381,7 +464,7 @@ else:
             for row in csv.reader(f):
                 ws.append(row)
         wb.save(excel_file)
-        logger.info("Wrote %s (%d data rows).", excel_file, extracted_count)
+        logger.info("Wrote %s (%d data rows).", excel_file, total_records)
     except Exception as e:
         logger.warning("Could not write Excel file %s (skipping, not required): %s", excel_file, e)
 

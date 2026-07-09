@@ -42,6 +42,14 @@ After adding or updating data in `/mcs_bead_project/data` directory you can re-r
 docker restart mcs_bead_proj
 ```
 
+**Incremental processing (default):** to keep restarts fast on a large, growing data folder, the extractor by default only parses files it has **not seen before** and appends their records — it does not re-read the whole tree every time. Newly added files/folders are picked up automatically; a restart with no new data is nearly instant.
+
+**Full re-fetch:** because incremental processing is append-only, it does **not** remove records for files that were **deleted or renamed**. To rebuild `records.csv` from scratch (e.g. after deleting/renaming data, or to be safe), run the container once with the `COMPLETE` environment variable set:
+```
+docker run -d --rm --name mcs_bead_proj -e COMPLETE=true -p 8050:8050 -v /Volumes/group_fi/group/Microscopy/Metrology/mcs_bead_project:/mcs_bead_project mpgagebioinformatics/mcs_bead_proj:stable
+```
+(The schema is also checked automatically — if the record format changes in a new image version, a full rebuild is done for you on the next run.)
+
 #### Stop Docker Container
 
 To stop the running container:
