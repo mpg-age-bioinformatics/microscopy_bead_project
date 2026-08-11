@@ -74,7 +74,7 @@ the pinhole size as a plain number **without the `µm` unit** (`SD40`, not
 
 ## Backward compatibility
 
-Going forward, the client should adopt the canonical `TCenHom…` form above.
+Going forward, canonical `TCenHom…` form above should be adopted.
 The extractor will **also auto-accept the legacy `THom…` prefix and normalize it
 to `TCenHom…`**, keeping whatever slide/laser/detector tokens follow — so
 historical exports keep working without renaming:
