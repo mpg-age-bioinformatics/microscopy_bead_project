@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Your account{% endblock %}
+{% block content %}
+<section class="narrow">
+  <h1>Change password</h1>
+  {% if g.user.must_change %}<p>Set a new password before accessing the dashboard.</p>{% endif %}
+  <p class="muted">Use at least 12 characters. Changing your password signs out all your sessions.</p>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="username" value="{{ g.user.username }}" autocomplete="username">
+    <label for="current">Current password</label>
+    <input id="current" name="current_password" type="password" autocomplete="current-password" maxlength="256" required>
+    <label for="password">New password</label>
+    <input id="password" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="256" required>
+    <label for="confirm">Confirm new password</label>
+    <input id="confirm" name="confirm_password" type="password" autocomplete="new-password" minlength="12" maxlength="256" required>
+    <button type="submit">Change password</button>
+  </form>
+</section>
+{% endblock %}

@@ -6,9 +6,11 @@ import shutil
 import hashlib
 import logging
 import argparse
+import tempfile
 from datetime import datetime
 
 from log_config import configure_logging
+from data_paths import get_data_paths
 
 # Functions for differnet operations
 def get_meta_values(input_str):
@@ -160,7 +162,10 @@ def extract_values_chrom(file_path):
 # Setup arguments for the python file
 # Use: python3 process_data.py -d </path/to/dir> -b <backup_limit>
 parser = argparse.ArgumentParser(description="Process a directory path.")
-parser.add_argument('-d', '--directory', type=str, default=".", help="Path to the directory (optional).")
+parser.add_argument('-d', '--directory', type=str, default=os.environ.get("DATA_ROOT", "."),
+                    help="Legacy root containing data/, extracted/ and backup/ (optional).")
+parser.add_argument('--source-dir', help="Read-only input directory; overrides SOURCE_DATA_DIR.")
+parser.add_argument('--output-root', help="Writable root for extracted/ and backup/; overrides OUTPUT_ROOT.")
 parser.add_argument('-b', '--backup', type=int, default=100, help="Backup number (optional, default: 100).")
 parser.add_argument('-e', '--excel-max-rows', type=int, default=100000,
                     help="Max record rows to still generate records.xlsx; above this it is skipped (optional, default: 100000). Set 0 to disable Excel.")
@@ -179,14 +184,21 @@ _env_complete = (os.environ.get('COMPLETE', '') or os.environ.get('REFETCH', '')
 complete = args.complete or _env_complete in ('1', 'true', 'yes', 'on')
 
 # Setup required paths
-data_dir = f"{root_dir}/data"
-fetch_dir = f"{root_dir}/extracted"
-backup_dir = f"{root_dir}/backup"
+try:
+    paths = get_data_paths(root_dir, args.source_dir, args.output_root)
+except ValueError as exc:
+    parser.error(str(exc))
+data_dir = paths.source_dir
+fetch_dir = paths.extracted_dir
+backup_dir = paths.backup_dir
 html_dir = f"{fetch_dir}/html"
 csv_file = f"{fetch_dir}/records.csv"
 excel_file = f"{fetch_dir}/records.xlsx"
 unprocessed_file = f"{fetch_dir}/unprocessed.txt"
 dataless_file = f"{fetch_dir}/dataless.txt"
+
+if not os.path.isdir(data_dir):
+    parser.error(f"Input data directory is unavailable: {data_dir}")
 
 # Create required directories
 os.makedirs(fetch_dir, exist_ok=True)
@@ -196,7 +208,8 @@ os.makedirs(html_dir, exist_ok=True)
 # Configure logging (stdout, captured per-container by `docker logs`)
 configure_logging()
 logger = logging.getLogger("process_data")
-logger.info("Starting data processing (directory=%s, backup_limit=%s)", root_dir, backup_limit)
+logger.info("Starting data processing (source=%s, output=%s, backup_limit=%s)",
+            data_dir, paths.output_root, backup_limit)
 
 # Back up the PREVIOUS run's records before records.csv is overwritten below.
 #
@@ -231,7 +244,7 @@ if current_hash is None:
 elif current_hash == latest_backup_hash:
     logger.info("records.csv unchanged since last backup; skipping backup.")
 else:
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     ctime = datetime.now().timestamp()
     current_b_dir = f"{backup_dir}/{timestamp}"
     os.makedirs(current_b_dir, exist_ok=True)
@@ -243,7 +256,7 @@ else:
         b_dir.append(current_b_dir)  # newest -> keep at end for correct pruning
         logger.info("Backed up records.csv to %s", current_b_dir)
     except Exception as e:
-        logger.warning("Could not back up records to %s: %s", current_b_dir, e)
+        raise RuntimeError(f"Could not back up records to {current_b_dir}; update aborted") from e
 
 # Prune oldest backups beyond the limit
 if len(b_dir) > backup_limit:
@@ -347,6 +360,17 @@ if incremental:
 else:
     logger.info("Complete mode: processing all files and rewriting records.csv from scratch.")
 
+# Stage outputs alongside the destination so readers only see complete CSVs.
+# Keep the existing records untouched if extraction fails or is interrupted.
+_staging = tempfile.TemporaryDirectory(prefix=".extract-", dir=fetch_dir)
+_published_paths = (unprocessed_file, dataless_file, csv_file)
+_staged_paths = tuple(os.path.join(_staging.name, os.path.basename(p)) for p in _published_paths)
+if incremental:
+    for source, target in zip(_published_paths, _staged_paths):
+        if os.path.exists(source):
+            shutil.copyfile(source, target)
+unprocessed_file, dataless_file, csv_file = _staged_paths
+
 # Append in incremental mode, overwrite in complete mode.
 out_mode = 'a' if incremental else 'w'
 
@@ -421,6 +445,12 @@ with open(csv_file, out_mode, newline='') as csv_fh, open(dataless_file, out_mod
         else:
             dataless_fh.write(f"{path}\n")
             dataless_count += 1
+
+# Publish records last, after both extraction reports have been written.
+for staged, published in zip(_staged_paths, _published_paths):
+    os.replace(staged, published)
+unprocessed_file, dataless_file, csv_file = _published_paths
+_staging.cleanup()
 
 # Total rows now in records.csv (existing kept rows + newly appended ones).
 total_records = existing_count + extracted_count

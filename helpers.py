@@ -2,6 +2,8 @@ import os
 import glob
 import logging
 import pandas as pd
+from pathlib import Path
+from data_paths import get_data_paths
 import plotly.express as px
 from datetime import datetime
 
@@ -164,13 +166,12 @@ def generate_fig_data(df, microscope=None, objective=None, test=None, bead_size=
     
 # Get the list of image relative paths
 # Return: list
-def get_image_paths(input_path, base_path = "/mcs_bead_project/data/"):
-    # Extract the directory from the input path
-    directory = os.path.dirname(input_path)
-    
-    # Use glob to find all .jpg files in the directory
-    image_files = glob.glob(os.path.join(directory, "*.jpg"))
-    relative_paths = [path.replace(base_path, "") for path in image_files]
-    
-    return relative_paths
+def get_image_paths(input_path, base_path=None):
+    base = Path(base_path or get_data_paths().source_dir).resolve()
+    directory = Path(input_path).parent.resolve()
+    if not directory.is_relative_to(base):
+        return []
+    return [image.resolve().relative_to(base).as_posix()
+            for image in directory.glob("*.jpg")
+            if image.resolve().is_relative_to(base)]
     

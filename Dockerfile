@@ -13,7 +13,10 @@ RUN pip install -r /app/requirements.txt
 # Expose the default Dash port
 EXPOSE 8050
 
-# Command to run the app.
-# Use ';' before app.py so the web app always starts even if HTML generation
-# fails entirely (app.py only needs records.csv, not figures.html).
-CMD ["sh", "-c", "python3 process_data.py -d /mcs_bead_project && python3 generate_html.py ; python3 app.py"]
+# Account storage must be explicitly initialized in a host-mounted folder.
+# Validate it before extraction; never silently create a fresh user database.
+ENV APP_STATE_DIR=/app-state
+ENV DATA_ROOT=/mcs_bead_project
+# SOURCE_DATA_DIR and OUTPUT_ROOT optionally split read-only inputs from outputs.
+# Leave them unset here so existing DATA_ROOT mounts remain compatible.
+CMD ["sh", "-c", "python3 auth.py check && { python3 process_data.py -d \"$DATA_ROOT\" && python3 generate_html.py; exec python3 app.py; }"]

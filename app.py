@@ -1,17 +1,23 @@
 import dash
 import os
 import logging
+import threading
 from dash import html, dash_table, dcc, Input, Output, State, Dash
 import pandas as pd
 import plotly.express as px
-from flask import send_file
+from pathlib import Path
+from flask import send_file, abort, g, has_request_context
 import dash_bootstrap_components as dbc
 from helpers import generate_fig_data, get_image_paths
+from admin import register_admin
+from auth import register_auth
+from data_paths import get_data_paths
 from log_config import configure_logging
 
 # Define values
-base_data_path = "/mcs_bead_project/data"
-records_path = '/mcs_bead_project/extracted/records.csv'
+data_paths = get_data_paths()
+base_data_path = data_paths.source_dir
+records_path = os.path.join(data_paths.extracted_dir, "records.csv")
 record_columns = [
     "date", "microscope", "objective", "test", "bead_size", "bead_number",
     "far_red", "red", "uv", "dual", "x", "y", "z",
@@ -21,20 +27,31 @@ record_columns = [
 configure_logging()
 logger = logging.getLogger("app")
 
-# Load records defensively so the web app still starts (with empty filters)
-# even if extraction produced no/invalid data, rather than crashing on import.
-try:
-    df = pd.read_csv(records_path)
-    if df.empty:
-        logger.warning("records.csv has no data rows; starting app with empty filters.")
-except FileNotFoundError:
-    logger.error("records.csv not found at %s; starting app with empty dataset.", records_path)
-    df = pd.DataFrame(columns=record_columns)
-except Exception:
-    logger.exception("Failed to read %s; starting app with empty dataset.", records_path)
-    df = pd.DataFrame(columns=record_columns)
+# Cache complete snapshots; the extractor publishes records.csv atomically.
+_records_lock = threading.Lock()
+_records_version = None
+_records_df = pd.DataFrame(columns=record_columns)
 
-df = df.assign(date=lambda x: pd.to_datetime(x['date'], format='%Y%m%d', errors='coerce'))
+
+def get_records():
+    global _records_df, _records_version
+    with _records_lock:
+        try:
+            stat = os.stat(records_path)
+            version = (stat.st_mtime_ns, stat.st_size, stat.st_ino)
+            if version != _records_version:
+                refreshed = pd.read_csv(records_path)
+                if not set(record_columns).issubset(refreshed.columns):
+                    raise ValueError("records.csv is missing required columns")
+                refreshed['date'] = pd.to_datetime(refreshed['date'], format='%Y%m%d', errors='coerce')
+                _records_df = refreshed
+                _records_version = version
+        except FileNotFoundError:
+            pass  # Start with empty filters until the first extraction completes.
+        except Exception:
+            logger.exception("Failed to reload %s; retaining the previous dataset.", records_path)
+        return _records_df
+
 
 def to_options(series):
     # Build dropdown options, dropping NaN so the dropdown never receives a
@@ -49,87 +66,104 @@ def to_options(series):
         return str(v)
     return [{'label': fmt(v), 'value': v} for v in series.dropna().unique()]
 
-microscope_options = to_options(df['microscope'])
-objective_options = to_options(df['objective'])
-test_options = to_options(df['test'])
-bead_size_options = to_options(df['bead_size'])
-bead_number_options = to_options(df['bead_number'])
-
-
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 server = app.server
+account_store = register_auth(server)
+update_manager = register_admin(server, data_paths, account_store)
 
 # Flask route to serve images
 @server.route('/images/<path:image_name>')
 def serve_image(image_name):
-    # Construct the full path to the requested image
-    image_path = os.path.join(base_data_path, image_name)
+    base = Path(base_data_path).resolve()
+    image_path = (base / image_name).resolve()
+    if not image_path.is_relative_to(base) or not image_path.is_file():
+        abort(404)
+    return send_file(image_path)
 
-    # Check if the file exists and is under the base directory
-    if os.path.isfile(image_path) and os.path.commonpath([base_data_path, image_path]) == base_data_path:
-        return send_file(image_path)
-    else:
-        return "", 200
+def dashboard_layout():
+    df = get_records()
+    user = getattr(g, "user", None) if has_request_context() else None
+    navigation = [html.A("Account / sign out", href="/account")]
+    if user and user['role'] == 'admin':
+        navigation.insert(0, html.A("Admin", href="/admin", style={"marginRight": "20px"}))
+    return html.Div([
+        dcc.Interval(id="records-refresh", interval=15000, n_intervals=0),
+        html.Div(navigation, style={"textAlign": "right", "padding": "8px 16px"}),
+        html.H2("Microscopy Bead Project", style={'textAlign': 'center'}),
+        html.Div([
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
+                            dbc.Card(
+                                [
+                                    html.H5("Filters", style={"margin-top": 10}),
+                                    html.Label('Microscope'), dcc.Dropdown( id='opt-microscope', options=to_options(df['microscope'])),
+                                    html.Label('Objective'), dcc.Dropdown( id='opt-objective', options=to_options(df['objective'])),
+                                    html.Label('Test'), dcc.Dropdown( id='opt-test', options=to_options(df['test'])),
+                                    html.Label('Bead Size'), dcc.Dropdown( id='opt-bead-size', options=to_options(df['bead_size'])),
+                                    html.Label('Bead Number'), dcc.Dropdown( id='opt-bead-number', options=to_options(df['bead_number'])),
+                                    # html.Label('Start Date'), dcc.DatePickerSingle(id='date-picker', placeholder='Select a date', style={'margin-bottom': '20px'}),
+                                    html.Label('Date Range'), html.Br(), dcc.DatePickerRange(id='opt-date', display_format='YYYY-MM-DD'),
+                                    html.Label('Consider Previous Values for Line Deviation'), html.Br(), dcc.Input(id='opt-consider-limit', type='number', value=3, min=1, max=50),
+                                    html.Br(), html.Label('Warning Percentage'), html.Br(), dcc.Input(id='opt-warning-percentage', type='number', value=15, min=1, max=100)
+                                ],
+                                body=True
+                            ),
+                            dbc.Button(
+                                'Submit',
+                                id='submit-button-state',
+                                color="secondary",
+                                n_clicks=0,
+                                style={
+                                    "width": "100%",
+                                    "margin-top": "2px",
+                                    "margin-bottom": "2px"
+                                }
+                            )
+                        ],
+                        xs=12, sm=12, md=6, lg=4, xl=3,
+                        align="top",
+                        style={
+                            "padding": "0px",
+                            "margin-bottom": "50px"
+                        }
+                    ),
 
-app.layout = html.Div([
-    html.H2("Microscopy Bead Project", style={'textAlign': 'center'}),
-    html.Div([
-        dbc.Row(
-            [
-                dbc.Col(
-                    [
-                        dbc.Card(
-                            [
-                                html.H5("Filters", style={"margin-top": 10}),
-                                html.Label('Microscope'), dcc.Dropdown( id='opt-microscope', options=microscope_options),
-                                html.Label('Objective'), dcc.Dropdown( id='opt-objective', options=objective_options),
-                                html.Label('Test'), dcc.Dropdown( id='opt-test', options=test_options),
-                                html.Label('Bead Size'), dcc.Dropdown( id='opt-bead-size', options=bead_size_options),
-                                html.Label('Bead Number'), dcc.Dropdown( id='opt-bead-number', options=bead_number_options),
-                                # html.Label('Start Date'), dcc.DatePickerSingle(id='date-picker', placeholder='Select a date', style={'margin-bottom': '20px'}),
-                                html.Label('Date Range'), html.Br(), dcc.DatePickerRange(id='opt-date', display_format='YYYY-MM-DD'),
-                                html.Label('Consider Previous Values for Line Deviation'), html.Br(), dcc.Input(id='opt-consider-limit', type='number', value=3, min=1, max=50),
-                                html.Br(), html.Label('Warning Percentage'), html.Br(), dcc.Input(id='opt-warning-percentage', type='number', value=15, min=1, max=100)
-                            ],
-                            body=True
-                        ),
-                        dbc.Button(
-                            'Submit',
-                            id='submit-button-state',
-                            color="secondary",
-                            n_clicks=0,
-                            style={
-                                "width": "100%",
-                                "margin-top": "2px",
-                                "margin-bottom": "2px"
-                            }
-                        )
-                    ],
-                    xs=12, sm=12, md=6, lg=4, xl=3,
-                    align="top",
-                    style={
-                        "padding": "0px",
-                        "margin-bottom": "50px"
-                    }
-                ),
-
-                # Second Column: Markdown Section
-                dbc.Col(
-                    [
-                        html.Div(id="tab-output"),
-                    ],
-                    xs=12, sm=12, md=6, lg=8, xl=9,
-                    style={"margin-bottom": "50px"}
-                )
-            ],
-            align="start",
-            justify="left",
-            className="g-0",
-            style={"width": "100%"}
-        )
+                    # Second Column: Markdown Section
+                    dbc.Col(
+                        [
+                            html.Div(id="tab-output"),
+                        ],
+                        xs=12, sm=12, md=6, lg=8, xl=9,
+                        style={"margin-bottom": "50px"}
+                    )
+                ],
+                align="start",
+                justify="left",
+                className="g-0",
+                style={"width": "100%"}
+            )
+        ])
     ])
-])
+
+
+app.layout = dashboard_layout
+
+
+@app.callback(
+    Output("opt-microscope", "options"),
+    Output("opt-objective", "options"),
+    Output("opt-test", "options"),
+    Output("opt-bead-size", "options"),
+    Output("opt-bead-number", "options"),
+    Input("records-refresh", "n_intervals"),
+)
+def refresh_filters(_):
+    df = get_records()
+    return [to_options(df[column]) for column in
+            ("microscope", "objective", "test", "bead_size", "bead_number")]
 
 
 
@@ -157,7 +191,7 @@ def update_output(n_clicks, microscope, objective, test, bead_size, bead_number,
         start_date, end_date, consider_limit, warning_percentage
     )
 
-    fig, considerd_df, change_df, fig_name, warning = generate_fig_data(df, microscope, objective, test, bead_size, bead_number, start_date, end_date, consider_limit, warning_percentage)
+    fig, considerd_df, change_df, fig_name, warning = generate_fig_data(get_records(), microscope, objective, test, bead_size, bead_number, start_date, end_date, consider_limit, warning_percentage)
 
     if fig is None or considerd_df is None or change_df is None:
         logger.warning("No data/figure produced for the requested filters.")
@@ -183,7 +217,7 @@ def update_output(n_clicks, microscope, objective, test, bead_size, bead_number,
                                 title=os.path.basename(image),
                                 style={"max-width": "400px", "max-height": "400px", "margin": "10px", "object-fit": "contain"}
                             )
-                            for image in get_image_paths(bead_path)
+                            for image in get_image_paths(bead_path, base_data_path + os.sep)
                         ],
                         style={"display": "flex", "flexWrap": "wrap", "justifyContent": "center"}
                     )
@@ -268,4 +302,4 @@ def update_output(n_clicks, microscope, objective, test, bead_size, bead_number,
 
 if __name__ == '__main__':
     logger.info("Starting Dash app on http://0.0.0.0:8050")
-    app.run_server(debug=True, host='0.0.0.0', port=8050)
+    app.run_server(debug=False, host='0.0.0.0', port=8050)

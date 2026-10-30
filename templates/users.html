@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Manage users{% endblock %}
+{% block content %}
+<h1>Manage users</h1>
+<p class="muted">Users can view the dashboard. Admins can also update data and manage accounts.</p>
+<section>
+  <h2>Add a user</h2>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="create">
+    <label for="username">Username</label>
+    <input id="username" name="username" autocomplete="off" pattern="[a-z0-9][a-z0-9_.\-]{2,63}" maxlength="64" required>
+    <label for="password">Temporary password</label>
+    <input id="password" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="256" required>
+    <label for="role">Access</label>
+    <select id="role" name="role"><option value="user">User</option><option value="admin">Admin</option></select>
+    <button type="submit">Create user</button>
+  </form>
+  <p class="muted" style="margin-top: 16px">Share the temporary password privately. The user must change it at first sign-in.</p>
+</section>
+<h2 style="margin-top: 28px">Existing users</h2>
+<div class="user-list">
+{% for user in users %}
+<section>
+  <form method="post">
+    <fieldset>
+      <legend>{{ user.username }}{% if user.id == g.user.id %} (you){% endif %}</legend>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="edit">
+      <input type="hidden" name="user_id" value="{{ user.id }}">
+      <label for="role-{{ user.id }}">Access</label>
+      <select id="role-{{ user.id }}" name="role"><option value="user" {% if user.role == 'user' %}selected{% endif %}>User</option><option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option></select>
+      <label><input name="active" type="checkbox" {% if user.active %}checked{% endif %}> Account enabled</label>
+      <label for="password-{{ user.id }}">Reset password (optional)</label>
+      <input id="password-{{ user.id }}" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="256" placeholder="Leave blank to keep the current password">
+      <button type="submit">Save changes</button>
+    </fieldset>
+  </form>
+</section>
+{% endfor %}
+</div>
+{% endblock %}

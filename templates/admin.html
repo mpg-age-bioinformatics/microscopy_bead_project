@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Administration{% endblock %}
+{% block head %}<script src="{{ url_for('static', filename='admin.js') }}" defer></script>{% endblock %}
+{% block content %}
+
+  <header>
+    <h1>Data administration</h1>
+    <p class="muted">Update microscopy records from the mounted data folder. The dashboard stays available while updates run.</p>
+  </header>
+  <div class="cards">
+    <section class="card">
+      <h2>Incremental update</h2>
+      <p>Find newly added files and add their records. Previously processed files are skipped, even if their contents have changed.</p>
+      <button id="incremental" disabled>Add new data</button>
+    </section>
+    <section class="card">
+      <h2>Full refetch</h2>
+      <p>Re-read all input files and rebuild the records. Use after editing, renaming or deleting files. This may take longer; existing records are backed up first.</p>
+      <button id="full" class="secondary" disabled>Rebuild all data…</button>
+    </section>
+  </div>
+  <p id="error" role="alert" hidden></p>
+  <section aria-labelledby="status-title">
+    <h2 id="status-title">Update status</h2>
+    <div role="status" aria-live="polite">
+      <span id="badge" class="badge">Connecting</span>
+      <p id="message">Checking the current update status…</p>
+    </div>
+    <p id="timing" class="muted"></p>
+    <p class="muted">Updates continue if you leave this page. Dashboard filters refresh automatically; press Submit to refresh a chart.</p>
+    <details open>
+      <summary>Processing log <span class="muted">· latest 200 lines</span></summary>
+      <pre id="logs" aria-label="Processing log">No log output yet.</pre>
+    </details>
+  </section>
+
+  <section class="history" style="margin-top: 24px">
+    <h2>Recent updates</h2>
+    <table><thead><tr><th>Started</th><th>By</th><th>Mode</th><th>Result</th></tr></thead>
+    <tbody id="history"></tbody></table>
+  </section>
+{% endblock %}

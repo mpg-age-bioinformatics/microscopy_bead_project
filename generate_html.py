@@ -5,10 +5,11 @@ import plotly.io as pio
 import logging
 from helpers import generate_fig_data
 from log_config import configure_logging
+from data_paths import get_data_paths
 import shutil
 import os
 
-extracted_dir = '/mcs_bead_project/extracted'
+extracted_dir = get_data_paths().extracted_dir
 record_file = f"{extracted_dir}/records.csv"
 html_dir = f"{extracted_dir}/html"
 html_all_file = f"{extracted_dir}/figures.html"
