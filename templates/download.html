@@ -43,11 +43,12 @@
   <p class="muted">Previous extracted records and processing reports, newest first. Each download contains one backup folder. Account storage is not included.</p>
   {% if backups %}
   <table>
-    <thead><tr><th>Backup timestamp</th><th>Size (before compression)</th><th>Download</th></tr></thead>
+    <thead><tr><th>Backup</th><th title="Server time recorded in the backup name">Time</th><th>Size (before compression)</th><th>Download</th></tr></thead>
     <tbody>
     {% for backup in backups %}
       <tr>
         <td><code>{{ backup.name }}</code></td>
+        <td>{{ backup.time }}</td>
         <td>{{ backup.size }}</td>
         <td>
           <form method="post" action="{{ url_for('download_backup', name=backup.name) }}">

@@ -59,7 +59,12 @@ def list_backups(directory):
                 if "records.csv" in sizes:
                     size = sum(sizes.values())
                     formatted = f"{size:,} bytes" if size < 1024 else f"{size / 1024:,.1f} KiB"
-                    backups.append({"name": path.name, "size": formatted})
+                    try:
+                        recorded_time = datetime.strptime(path.name[:15], "%Y%m%d_%H%M%S")
+                        readable_time = recorded_time.strftime("%d %b %Y, %H:%M:%S")
+                    except ValueError:
+                        readable_time = "Unavailable"
+                    backups.append({"name": path.name, "time": readable_time, "size": formatted})
         except FileNotFoundError:
             continue  # Retention may prune a backup while the page is loading.
     return backups
