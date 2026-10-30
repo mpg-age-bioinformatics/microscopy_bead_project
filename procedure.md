@@ -88,7 +88,7 @@ The resulting folders are:
 ├── accounts/
 │   └── app.db            # Accounts, roles and update history
 └── output/
-    ├── extracted/        # CSV, Excel, reports and optional HTML exports
+    ├── extracted/        # CSV, reports and optional HTML exports
     └── backup/           # Previous extracted records
 ```
 
@@ -110,13 +110,31 @@ docker inspect mcs_bead_dev \
 
 Extraction keeps up to **20 backups** in `$HOME/microscopy-local/output/backup` by default. Older backups are pruned on the next extraction run. These contain previous records and reports; account-database backups are managed separately.
 
-HTML generation is optional and does not run during startup or data updates. Dashboard charts continue to work directly from the extracted records. If you need HTML exports, wait for any data update to finish, then run:
+HTML generation is optional and does not run during startup or data updates. Dashboard charts continue to work directly from the extracted records. Use **Generate and download HTML** on [Downloads](http://localhost:8051/download) for a fresh combined report. If you explicitly want to save combined and individual HTML files in the output folder, wait for any data update to finish, then run:
 
 ```bash
 docker exec mcs_bead_dev python3 generate_html.py
 ```
 
-This reads `output/extracted/records.csv` and rebuilds the HTML exports in `output/extracted/`; it does not read the original input files. Existing HTML exports are left unchanged by data updates and may be out of date until you run this command. There is no HTML-generation button yet.
+This reads `output/extracted/records.csv` and rebuilds the HTML exports in `output/extracted/`; it does not read the original input files. Saved HTML exports are left unchanged by data updates and downloads. The download button generates a new report from the current CSV instead of serving saved exports.
+
+### Download records and reports
+
+Open [Downloads](http://localhost:8051/download) from the dashboard or account navigation. Both regular users and administrators can use this page after signing in.
+
+| Button | Result |
+| --- | --- |
+| Download records.csv | The latest published CSV |
+| Generate and download Excel | A new `records.xlsx` built from the current CSV for this request |
+| Download unprocessed.txt | Paths the extractor did not recognize |
+| Download dataless.txt | Recognized paths with no usable target measurements |
+| Generate and download HTML | A fresh `figures.html` with interactive figures and deviation tables for all microscopes and objectives; opens offline |
+
+Files that do not yet exist have disabled buttons. Excel and HTML generation become available once `records.csv` exists. Empty text reports mean no paths were listed in that report.
+
+Excel is no longer generated during data updates or saved to the output folder by default. The download prepares a temporary workbook from one complete CSV snapshot, preserving values as text. Large exports may take time; Excel and HTML share one export slot, so only one is generated at once. If the data exceeds Excel's limits, use CSV. Any old `output/extracted/records.xlsx` is ignored by Downloads.
+
+HTML is generated from a complete CSV snapshot into a temporary file and downloaded as `figures.html`. The server removes the temporary file when the response closes; it does not retain the report in `output/extracted`. Figures are written one at a time, with Plotly included once to keep the report smaller and usable offline. Plot generation still loads the CSV into memory. Any unavailable figures are identified inside the report.
 
 ### 7. Stop, restart or apply code changes
 
@@ -138,7 +156,7 @@ Sign in as an administrator and open [Users](http://localhost:8051/admin/users),
 
 | Access | Permissions |
 | --- | --- |
-| User | View the dashboard, data, charts and images; change their own password; sign out |
+| User | View the dashboard, data, charts and images; download records and reports; change their own password; sign out |
 | Admin | All user permissions, plus run data updates and manage accounts |
 
 ### Add a user

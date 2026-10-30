@@ -46,3 +46,5 @@ legend { font-weight: 700; font-size: 20px; }
 .history { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th, td { text-align: left; padding: 10px; border-bottom: 1px solid #d5dee8; }
+.button-link { display: inline-block; margin-top: auto; background: #205c9e; color: white; border-radius: 6px; padding: 12px 18px; font-weight: 600; text-decoration: none; }
+.card form { margin-top: auto; }

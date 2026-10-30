@@ -167,8 +167,9 @@ parser.add_argument('-d', '--directory', type=str, default=os.environ.get("DATA_
 parser.add_argument('--source-dir', help="Read-only input directory; overrides SOURCE_DATA_DIR.")
 parser.add_argument('--output-root', help="Writable root for extracted/ and backup/; overrides OUTPUT_ROOT.")
 parser.add_argument('-b', '--backup', type=int, default=20, help="Backup number (optional, default: 20).")
-parser.add_argument('-e', '--excel-max-rows', type=int, default=100000,
-                    help="Max record rows to still generate records.xlsx; above this it is skipped (optional, default: 100000). Set 0 to disable Excel.")
+parser.add_argument('-e', '--excel-max-rows', type=int, default=0,
+                    help="Opt-in row limit for writing records.xlsx during extraction (default: 0, disabled). "
+                         "Normally use the Downloads page to generate Excel on request.")
 parser.add_argument('-c', '--complete', action='store_true',
                     help="Re-process ALL data from scratch and rewrite records.csv. "
                          "By default (incremental) only files not already recorded are "
@@ -475,10 +476,10 @@ if total_records == 0:
 #   * Otherwise build it by streaming row-by-row with openpyxl's write_only mode
 #     so we never hold the whole workbook in memory (the old df.to_excel path
 #     materialised every cell as an object -> multi-GB spikes / OOM).
-if incremental and extracted_count == 0 and os.path.exists(excel_file):
+if excel_max_rows <= 0:
+    logger.info("Skipping records.xlsx; generate Excel on request from the Downloads page.")
+elif incremental and extracted_count == 0 and os.path.exists(excel_file):
     logger.info("No new records; leaving existing records.xlsx unchanged.")
-elif excel_max_rows <= 0:
-    logger.info("Skipping records.xlsx (Excel generation disabled). Use records.csv.")
 elif total_records > excel_max_rows:
     logger.info(
         "Skipping records.xlsx: %d rows exceeds the limit of %d. Use records.csv for the full data.",

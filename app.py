@@ -12,6 +12,7 @@ from helpers import generate_fig_data, get_image_paths
 from admin import register_admin
 from auth import register_auth
 from data_paths import get_data_paths
+from downloads import register_downloads
 from log_config import configure_logging
 
 # Define values
@@ -71,6 +72,7 @@ app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 server = app.server
 account_store = register_auth(server)
 update_manager = register_admin(server, data_paths, account_store)
+register_downloads(server, data_paths)
 
 # Flask route to serve images
 @server.route('/images/<path:image_name>')
@@ -84,7 +86,8 @@ def serve_image(image_name):
 def dashboard_layout():
     df = get_records()
     user = getattr(g, "user", None) if has_request_context() else None
-    navigation = [html.A("Account / sign out", href="/account")]
+    navigation = [html.A("Downloads", href="/download", style={"marginRight": "20px"}),
+                  html.A("Account / sign out", href="/account")]
     if user and user['role'] == 'admin':
         navigation.insert(0, html.A("Admin", href="/admin", style={"marginRight": "20px"}))
     return html.Div([

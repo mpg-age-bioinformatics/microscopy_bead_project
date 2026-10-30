@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Downloads{% endblock %}
+{% block content %}
+<h1>Download data</h1>
+<p class="muted">Download the latest available records and processing reports. During an update, downloads use the files already published.</p>
+<div class="cards">
+  {% for file in files %}
+  <section class="card">
+    <h2>{{ file.title }}</h2>
+    <p>{{ file.description }}</p>
+    {% if file.available %}
+    <p class="muted">Saved {{ file.modified }}</p>
+    <a class="button-link" href="{{ url_for('download_file', filename=file.name) }}" download>Download {{ file.name }}</a>
+    {% else %}
+    <p class="muted">Not available yet.</p>
+    <button disabled>Download {{ file.name }}</button>
+    {% endif %}
+  </section>
+  {% if file.name == 'records.csv' %}
+  <section class="card">
+    <h2>Records · Excel</h2>
+    <p>Generate an Excel workbook from the current CSV. Large downloads may take a little time to prepare.</p>
+    <p class="muted">Values are preserved as text. For datasets exceeding Excel's limits, use CSV.</p>
+    <form method="post" action="{{ url_for('download_excel') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" {% if not records.available %}disabled{% endif %}>Generate and download Excel</button>
+    </form>
+  </section>
+  <section class="card">
+    <h2>All figures · HTML</h2>
+    <p>Generate one interactive report with figures and deviation tables for all microscopes and objectives in the current CSV.</p>
+    <p class="muted">Opens offline in your browser. Large reports may take time to prepare.</p>
+    <form method="post" action="{{ url_for('download_html') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" {% if not records.available %}disabled{% endif %}>Generate and download HTML</button>
+    </form>
+  </section>
+  {% endif %}
+  {% endfor %}
+</div>
+{% endblock %}

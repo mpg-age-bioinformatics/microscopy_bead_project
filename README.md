@@ -5,7 +5,7 @@ For the local setup using `$HOME/microscopy-local/data`, `accounts` and `output`
 ### Features
 - Parse data from all the input excel files and store required data in a CSV file
 - Report files which are not parseable or with no target data
-- Optionally export target graphs as HTML with values and warning signs using `generate_html.py`
+- Download a combined interactive HTML report on request, or explicitly save exports using `generate_html.py`
 - Interactive interface (in browser) with option filters and outputs including figures, data, deviations and images
 
 ### Get Started
@@ -66,7 +66,7 @@ docker run -d --rm --name mcs_bead_proj -p 127.0.0.1:8050:8050 \
 | `$OUTPUT_HOST` | `/output` | Writable `extracted/` and `backup/` |
 | `$APP_STATE_HOST` | `/app-state` | Writable local SQLite accounts and update history |
 
-The extractor never writes to the source directory. CSV, Excel, reports, HTML figures, staging files and extraction backups all go under the output mount. Image previews are read directly from the source mount. Keep the account mount on local storage as described above.
+The extractor never writes to the source directory. CSV, reports, staging files and extraction backups go under the output mount. Excel and HTML downloads are generated temporarily from CSV and sent to the browser; neither is saved in the output folder. The manual HTML script can still explicitly save exports there. Image previews are read directly from the source mount. Keep the account mount on local storage as described above.
 
 Open [http://localhost:8050/](http://localhost:8050/). The dashboard, images and backend requests all require sign-in. The container extracts data before starting the web application; it does not generate HTML exports automatically. Check progress with `docker logs -f mcs_bead_proj`.
 
@@ -109,7 +109,7 @@ Incremental extraction processes only previously unseen paths. Use a full refetc
 
 #### Admin interface and accounts
 
-- **User:** can view data, charts and images, change their password and sign out.
+- **User:** can view data, charts and images, download extracted records and reports, change their password and sign out.
 - **Admin:** can also run updates and manage accounts at `/admin/users`.
 - Admins create users with a temporary password and either role. Users must change temporary passwords before accessing data. There is no self-registration or email service.
 - Admins can change roles, disable accounts and reset passwords. Saving account changes invalidates that user's existing sessions. The last active administrator cannot be disabled or demoted.
@@ -121,15 +121,32 @@ Extraction publishes records atomically, leaving the previous CSV available unti
 
 Keep one application process and one container writing to a given data folder. Do not run a separate CLI extraction during an admin update. Restarting the container interrupts any running update; the next startup marks that history entry as interrupted/failed.
 
+#### Downloads
+
+Open `/download` (for the local setup, [http://localhost:8051/download](http://localhost:8051/download)). Both users and administrators can download files after signing in:
+
+- **records.csv**: the latest published records, downloaded directly.
+- **Excel**: generated from the current CSV when requested; it never serves a previously saved `records.xlsx`.
+- **unprocessed.txt** and **dataless.txt**: the latest published processing reports. Empty reports are valid downloads.
+- **HTML report**: generated from the current CSV on request, with interactive figures and deviation tables for all microscopes and objectives. It includes Plotly once and opens offline in a browser.
+
+Unavailable files have disabled buttons. Only these named exports are accessible; source files, backups and account storage are not exposed by this page.
+
+Automatic Excel generation is disabled during startup and admin updates. The download uses streaming conversion to a temporary workbook. Excel and HTML share a lock: only one export is generated at a time per application process. It reads a complete CSV snapshot even if an update publishes new records during conversion. Cell values are preserved as text, including values that look like spreadsheet formulas. If Excel's row, column or cell limits are exceeded, download CSV instead.
+
+Generated downloads use temporary files that are closed and removed after the response completes or fails; no permanent export is saved. HTML is written figure by figure rather than accumulating the entire report in memory. Plot generation still loads the CSV into memory, so large datasets can take time and memory to process. The report notes any combinations for which no figure could be produced. Older `records.xlsx` files in the output directory are left untouched and may be stale; the Downloads page does not use them. For a CLI workflow that explicitly needs a saved workbook, opt in with `python3 process_data.py ... --excel-max-rows 100000` (replace `...` with your source/output options).
+
 #### Optional HTML exports
 
-The standalone `generate_html.py` script remains available. To generate exports manually after an update finishes:
+For a fresh report without storing an export on the server, use **Generate and download HTML** on `/download`.
+
+The standalone `generate_html.py` script remains available when you explicitly want saved combined and individual exports. Run it after an update finishes:
 
 ```bash
 docker exec mcs_bead_proj python3 generate_html.py
 ```
 
-For the local procedure's container, use `mcs_bead_dev` instead. The script reads the extracted `records.csv` and writes `extracted/figures.html` and `extracted/html/` under the configured output mount. It does not re-read the source data. Existing HTML exports remain unchanged during startup and data updates, so regenerate them manually when you need current exports. There is no HTML-generation button yet.
+For the local procedure's container, use `mcs_bead_dev` instead. The script reads the extracted `records.csv` and writes `extracted/figures.html` and `extracted/html/` under the configured output mount. It does not re-read the source data. Existing saved exports remain unchanged during startup, data updates and downloads. The download button always uses the current CSV and never serves these older files.
 
 #### Account recovery and backups
 
@@ -215,7 +232,7 @@ Extracted files are stored in `$OUTPUT_HOST/extracted` on the host (`/output/ext
 
 `extracted` directory contains the following:
 - `records.csv`: primary file that stores all the fetched records from the input directory
-- `records.xlsx`: the same records in an excel file
+- `records.xlsx`: optional saved workbook, only created when extraction explicitly enables `--excel-max-rows`; normally download a freshly generated Excel file through `/download`
 - `dataless.txt`: contains directories where no target data was found
 - `unprocessed.txt`: contains directories that could not be processed to fetch data
 - `figures.html`: optional combined figure export, created by manually running `generate_html.py`
@@ -252,7 +269,7 @@ Extraction backups are stored in `$OUTPUT_HOST/backup` (`/output/backup` in the 
 
 - `docker ps` / `docker ps -a` — see running vs. exited containers. Note the **exit code**: `137` means the container ran **out of memory**.
 - `docker logs mcs_bead_proj` — application logs, including the data-processing summary, warnings, and errors.
-- **Out of memory (exit 137):** increase Docker Desktop's memory limit (Settings → Resources). The tool already streams output and skips the optional `records.xlsx` above a row limit to keep memory low.
+- **Out of memory (exit 137):** increase Docker Desktop's memory limit (Settings → Resources). Extraction streams output and no longer generates Excel automatically. Excel is generated on demand through Downloads.
 
 #### Adding a new microscope or new data
 

@@ -14,6 +14,7 @@
   <nav aria-label="Main navigation">
     {% if not g.user.must_change %}
     <a href="/">Dashboard</a>
+    <a href="/download">Downloads</a>
     {% if g.user.role == 'admin' %}<a href="/admin">Updates</a><a href="/admin/users">Users</a>{% endif %}
     {% endif %}
     <a href="/account">Account · {{ g.user.username }}</a>
