@@ -129,12 +129,15 @@ Sign in as an administrator and open `/download` (for the local setup, [http://l
 - **Excel**: generated from the current CSV when requested; it never serves a previously saved `records.xlsx`.
 - **unprocessed.txt** and **dataless.txt**: the latest published processing reports. Empty reports are valid downloads.
 - **HTML report**: generated from the current CSV on request, with interactive figures and deviation tables for all microscopes and objectives. It includes Plotly once and opens offline in a browser.
+- **Backups**: timestamped extraction snapshots listed newest first, with their uncompressed size and a **Download .tar.gz** button for each.
 
-Unavailable files have disabled buttons. Only these named exports are accessible; source files, backups and account storage are not exposed by this page.
+Unavailable current files have disabled buttons. Only these named exports and the listed extraction snapshots are accessible; source files and account storage are not exposed by this page.
 
-Automatic Excel generation is disabled during startup and admin updates. The download uses streaming conversion to a temporary workbook. Excel and HTML share a lock: only one export is generated at a time per application process. It reads a complete CSV snapshot even if an update publishes new records during conversion. Cell values are preserved as text, including values that look like spreadsheet formulas. If Excel's row, column or cell limits are exceeded, download CSV instead.
+Automatic Excel generation is disabled during startup and admin updates. The download uses streaming conversion to a temporary workbook. Excel, HTML and backup archives share a lock: only one export is generated at a time per application process. Excel reads a complete CSV snapshot even if an update publishes new records during conversion. Cell values are preserved as text, including values that look like spreadsheet formulas. If Excel's row, column or cell limits are exceeded, download CSV instead.
 
 Generated downloads use temporary files that are closed and removed after the response completes or fails; no permanent export is saved. HTML is written figure by figure rather than accumulating the entire report in memory. Plot generation still loads the CSV into memory, so large datasets can take time and memory to process. The report notes any combinations for which no figure could be produced. Older `records.xlsx` files in the output directory are left untouched and may be stale; the Downloads page does not use them. For a CLI workflow that explicitly needs a saved workbook, opt in with `python3 process_data.py ... --excel-max-rows 100000` (replace `...` with your source/output options).
+
+Backup archives contain one timestamped folder with `records.csv` and any saved `unprocessed.txt` / `dataless.txt` reports. Other files, nested folders and symbolic links are not included. Archives are generated temporarily on request; they are not stored alongside the snapshots. New snapshots become visible only after copying finishes. If retention removes a backup before its files can be opened, refresh the list and choose another snapshot. The default retention remains 20 backups. This feature is download-only; it does not restore data or back up `app.db`.
 
 #### Optional HTML exports
 

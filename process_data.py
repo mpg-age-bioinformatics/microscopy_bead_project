@@ -248,12 +248,14 @@ else:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     ctime = datetime.now().timestamp()
     current_b_dir = f"{backup_dir}/{timestamp}"
-    os.makedirs(current_b_dir, exist_ok=True)
     try:
-        for src in (csv_file, unprocessed_file, dataless_file):
-            if os.path.exists(src):
-                shutil.copy2(src, current_b_dir)
-        os.utime(current_b_dir, (ctime, ctime))
+        # Publish only completed snapshots so downloads cannot see partial copies.
+        with tempfile.TemporaryDirectory(prefix=".backup-", dir=backup_dir) as staging:
+            for src in (csv_file, unprocessed_file, dataless_file):
+                if os.path.exists(src):
+                    shutil.copy2(src, staging)
+            os.utime(staging, (ctime, ctime))
+            os.replace(staging, current_b_dir)
         b_dir.append(current_b_dir)  # newest -> keep at end for correct pruning
         logger.info("Backed up records.csv to %s", current_b_dir)
     except Exception as e:

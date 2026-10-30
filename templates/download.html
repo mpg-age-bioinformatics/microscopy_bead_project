@@ -38,4 +38,29 @@
   {% endif %}
   {% endfor %}
 </div>
+<section class="history" id="backups">
+  <h2>Backups</h2>
+  <p class="muted">Previous extracted records and processing reports, newest first. Each download contains one backup folder. Account storage is not included.</p>
+  {% if backups %}
+  <table>
+    <thead><tr><th>Backup timestamp</th><th>Size (before compression)</th><th>Download</th></tr></thead>
+    <tbody>
+    {% for backup in backups %}
+      <tr>
+        <td><code>{{ backup.name }}</code></td>
+        <td>{{ backup.size }}</td>
+        <td>
+          <form method="post" action="{{ url_for('download_backup', name=backup.name) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" aria-label="Download backup {{ backup.name }}">Download .tar.gz</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>No backups available yet. A snapshot is saved before extraction when existing records differ from the latest backup.</p>
+  {% endif %}
+</section>
 {% endblock %}

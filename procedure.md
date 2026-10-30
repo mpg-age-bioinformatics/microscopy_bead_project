@@ -132,9 +132,19 @@ Sign in as an administrator and open [Downloads](http://localhost:8051/download)
 
 Files that do not yet exist have disabled buttons. Excel and HTML generation become available once `records.csv` exists. Empty text reports mean no paths were listed in that report.
 
-Excel is no longer generated during data updates or saved to the output folder by default. The download prepares a temporary workbook from one complete CSV snapshot, preserving values as text. Large exports may take time; Excel and HTML share one export slot, so only one is generated at once. If the data exceeds Excel's limits, use CSV. Any old `output/extracted/records.xlsx` is ignored by Downloads.
+Excel is no longer generated during data updates or saved to the output folder by default. The download prepares a temporary workbook from one complete CSV snapshot, preserving values as text. Large exports may take time; Excel, HTML and backup archives share one export slot, so only one is generated at once. If the data exceeds Excel's limits, use CSV. Any old `output/extracted/records.xlsx` is ignored by Downloads.
 
 HTML is generated from a complete CSV snapshot into a temporary file and downloaded as `figures.html`. The server removes the temporary file when the response closes; it does not retain the report in `output/extracted`. Figures are written one at a time, with Plotly included once to keep the report smaller and usable offline. Plot generation still loads the CSV into memory. Any unavailable figures are identified inside the report.
+
+### Download an extraction backup
+
+1. As an admin, open [Downloads](http://localhost:8051/download#backups) and find **Backups** below the current-file downloads.
+2. Choose a snapshot by its timestamp. The newest snapshots appear first; the listed size is before compression.
+3. Click **Download .tar.gz**. The archive contains the selected timestamped folder, its `records.csv` and any saved `unprocessed.txt` / `dataless.txt` reports.
+
+The archive is created temporarily and removed from the server after the response closes. It does not change the original backup. Only completed snapshots are listed, and the default retention remains 20. If a snapshot was pruned after loading the page, refresh and choose another one.
+
+This downloads extraction data only: it excludes `app.db`, source files and other files in the backup folder. It does not restore anything through the interface. See [Account recovery and backups](README.md#account-recovery-and-backups) for the separate account-database backup procedure.
 
 ### 7. Stop, restart or apply code changes
 

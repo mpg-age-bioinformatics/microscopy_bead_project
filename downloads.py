@@ -1,11 +1,15 @@
 """Admin-only downloads of extracted data, with Excel and HTML generated on request."""
 
 import csv
+from contextlib import ExitStack
 import io
 from datetime import datetime, timezone
 import logging
 import os
 from pathlib import Path
+import re
+import stat
+import tarfile
 import tempfile
 import threading
 
@@ -25,6 +29,69 @@ FILES = {
     "unprocessed.txt": ("Unprocessed files", "Input paths not recognized by the extractor.", "text/plain"),
     "dataless.txt": ("Files without data", "Recognized input paths with no usable target measurements.", "text/plain"),
 }
+BACKUP_NAME = re.compile(r"[0-9]{8}_[0-9]{6}(?:_[0-9]{6})?")
+BACKUP_FILES = ("records.csv", "unprocessed.txt", "dataless.txt")
+
+
+def list_backups(directory):
+    """List completed timestamped snapshots, excluding links and unrelated files."""
+    try:
+        candidates = sorted(directory.iterdir(), key=lambda path: path.name, reverse=True)
+    except FileNotFoundError:
+        return []
+    backups = []
+    for path in candidates:
+        if not BACKUP_NAME.fullmatch(path.name):
+            continue
+        try:
+            if not stat.S_ISDIR(path.lstat().st_mode):
+                continue
+            sizes = {}
+            for name in BACKUP_FILES:
+                try:
+                    info = (path / name).lstat()
+                except FileNotFoundError:
+                    continue
+                if not stat.S_ISREG(info.st_mode):
+                    break
+                sizes[name] = info.st_size
+            else:
+                if "records.csv" in sizes:
+                    size = sum(sizes.values())
+                    formatted = f"{size:,} bytes" if size < 1024 else f"{size / 1024:,.1f} KiB"
+                    backups.append({"name": path.name, "size": formatted})
+        except FileNotFoundError:
+            continue  # Retention may prune a backup while the page is loading.
+    return backups
+
+
+def write_backup(directory, name, destination):
+    """Archive only regular, allowlisted files; never follow snapshot symlinks."""
+    if not BACKUP_NAME.fullmatch(name):
+        raise ValueError("Invalid backup name.")
+    with ExitStack() as stack:
+        directory_fd = os.open(directory / name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        stack.callback(os.close, directory_fd)
+        filenames = set(os.listdir(directory_fd))
+        members = []
+        for filename in BACKUP_FILES:
+            if filename != "records.csv" and filename not in filenames:
+                continue  # Older snapshots may not contain both reports.
+            fd = os.open(filename, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory_fd)
+            stack.callback(os.close, fd)
+            stream = stack.enter_context(os.fdopen(fd, "rb", closefd=False))
+            info = os.fstat(stream.fileno())
+            if not stat.S_ISREG(info.st_mode):
+                raise ValueError("Backup contains an unsupported file.")
+            member = tarfile.TarInfo(f"{name}/{filename}")
+            member.size = info.st_size
+            member.mtime = info.st_mtime
+            member.mode = 0o600
+            members.append((member, stream))
+        # Open all inputs first so retention cannot remove a file mid-archive.
+        with tarfile.open(fileobj=destination, mode="w:gz") as archive:
+            for member, stream in members:
+                archive.addfile(member, stream)
 
 
 def attachment(handle, filename, mimetype):
@@ -77,6 +144,7 @@ def write_html(source, destination):
 
 def register_downloads(server, paths):
     directory = Path(paths.extracted_dir).resolve()
+    backup_directory = Path(paths.backup_dir).resolve()
     export_lock = threading.Lock()
 
     def available_path(filename):
@@ -101,7 +169,8 @@ def register_downloads(server, paths):
     def download_page():
         files = [{"name": name, "title": title, "description": description, **metadata(name)}
                  for name, (title, description, _) in FILES.items()]
-        return render_template("download.html", files=files, records=metadata("records.csv"))
+        return render_template("download.html", files=files, records=metadata("records.csv"),
+                               backups=list_backups(backup_directory))
 
     @server.route("/download/<path:filename>")
     @admin_required
@@ -160,3 +229,30 @@ def register_downloads(server, paths):
     @admin_required
     def download_html():
         return generated_download("figures.html", write_html, "text/html")
+
+    @server.route("/download/backups/<name>.tar.gz", methods=["POST"])
+    @admin_required
+    def download_backup(name):
+        if not BACKUP_NAME.fullmatch(name):
+            abort(404)
+        if not export_lock.acquire(blocking=False):
+            flash("Another export is being prepared. Please try again shortly.", "error")
+            return redirect(url_for("download_page"), code=303)
+        output = None
+        try:
+            output = tempfile.TemporaryFile(mode="w+b")
+            write_backup(backup_directory, name, output)
+            output.seek(0)
+            response = attachment(output, f"backup-{name}.tar.gz", "application/gzip")
+            output = None
+            return response
+        except FileNotFoundError:
+            flash("That backup is no longer available. Refresh the list and choose another backup.", "error")
+        except (OSError, ValueError, tarfile.TarError):
+            logger.exception("Backup archive failed for %s", name)
+            flash("Could not prepare that backup. Refresh the list or ask the server administrator to check it.", "error")
+        finally:
+            if output is not None:
+                output.close()
+            export_lock.release()
+        return redirect(url_for("download_page"), code=303)
