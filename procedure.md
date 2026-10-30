@@ -120,7 +120,7 @@ This reads `output/extracted/records.csv` and rebuilds the HTML exports in `outp
 
 ### Download records and reports
 
-Open [Downloads](http://localhost:8051/download) from the dashboard or account navigation. Both regular users and administrators can use this page after signing in.
+Sign in as an administrator and open [Downloads](http://localhost:8051/download) from the dashboard or account navigation. Downloads are admin-only. Regular users do not see the link and receive HTTP 403 when accessing the page, file downloads or export-generation routes directly.
 
 | Button | Result |
 | --- | --- |
@@ -156,8 +156,8 @@ Sign in as an administrator and open [Users](http://localhost:8051/admin/users),
 
 | Access | Permissions |
 | --- | --- |
-| User | View the dashboard, data, charts and images; download records and reports; change their own password; sign out |
-| Admin | All user permissions, plus run data updates and manage accounts |
+| User | View the dashboard, data, charts and images; change their own password; sign out |
+| Admin | All user permissions, plus download records and reports, run data updates and manage accounts |
 
 ### Add a user
 

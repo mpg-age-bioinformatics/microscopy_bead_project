@@ -1,4 +1,4 @@
-"""Authenticated downloads of extracted data, with Excel and HTML generated on request."""
+"""Admin-only downloads of extracted data, with Excel and HTML generated on request."""
 
 import csv
 import io
@@ -14,6 +14,7 @@ from openpyxl import Workbook
 from openpyxl.cell import WriteOnlyCell
 from openpyxl.styles import Font
 from generate_html import write_report
+from auth import admin_required
 
 
 logger = logging.getLogger(__name__)
@@ -96,12 +97,14 @@ def register_downloads(server, paths):
         }
 
     @server.route("/download", strict_slashes=False)
+    @admin_required
     def download_page():
         files = [{"name": name, "title": title, "description": description, **metadata(name)}
                  for name, (title, description, _) in FILES.items()]
         return render_template("download.html", files=files, records=metadata("records.csv"))
 
     @server.route("/download/<path:filename>")
+    @admin_required
     def download_file(filename):
         if filename not in FILES:
             abort(404)
@@ -148,10 +151,12 @@ def register_downloads(server, paths):
         return redirect(url_for("download_page"), code=303)
 
     @server.route("/download/records.xlsx", methods=["POST"])
+    @admin_required
     def download_excel():
         return generated_download("records.xlsx", write_excel,
                                   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     @server.route("/download/figures.html", methods=["POST"])
+    @admin_required
     def download_html():
         return generated_download("figures.html", write_html, "text/html")

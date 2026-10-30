@@ -109,8 +109,8 @@ Incremental extraction processes only previously unseen paths. Use a full refetc
 
 #### Admin interface and accounts
 
-- **User:** can view data, charts and images, download extracted records and reports, change their password and sign out.
-- **Admin:** can also run updates and manage accounts at `/admin/users`.
+- **User:** can view data, charts and images, change their password and sign out.
+- **Admin:** can also download extracted records and reports, run updates and manage accounts at `/admin/users`.
 - Admins create users with a temporary password and either role. Users must change temporary passwords before accessing data. There is no self-registration or email service.
 - Admins can change roles, disable accounts and reset passwords. Saving account changes invalidates that user's existing sessions. The last active administrator cannot be disabled or demoted.
 - Passwords are stored as salted scrypt hashes. Sessions expire after eight hours. State-changing forms and update requests require CSRF tokens. Five incorrect password attempts lock an account for five minutes; sign-in requests are also throttled per connecting IP.
@@ -123,7 +123,7 @@ Keep one application process and one container writing to a given data folder. D
 
 #### Downloads
 
-Open `/download` (for the local setup, [http://localhost:8051/download](http://localhost:8051/download)). Both users and administrators can download files after signing in:
+Sign in as an administrator and open `/download` (for the local setup, [http://localhost:8051/download](http://localhost:8051/download)). The page, direct file downloads and Excel/HTML generation routes are admin-only; regular users receive HTTP 403 even when using a direct URL. Available downloads:
 
 - **records.csv**: the latest published records, downloaded directly.
 - **Excel**: generated from the current CSV when requested; it never serves a previously saved `records.xlsx`.

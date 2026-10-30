@@ -86,9 +86,9 @@ def serve_image(image_name):
 def dashboard_layout():
     df = get_records()
     user = getattr(g, "user", None) if has_request_context() else None
-    navigation = [html.A("Downloads", href="/download", style={"marginRight": "20px"}),
-                  html.A("Account / sign out", href="/account")]
+    navigation = [html.A("Account / sign out", href="/account")]
     if user and user['role'] == 'admin':
+        navigation.insert(0, html.A("Downloads", href="/download", style={"marginRight": "20px"}))
         navigation.insert(0, html.A("Admin", href="/admin", style={"marginRight": "20px"}))
     return html.Div([
         dcc.Interval(id="records-refresh", interval=15000, n_intervals=0),
