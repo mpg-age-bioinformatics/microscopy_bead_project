@@ -81,14 +81,6 @@ class UpdateManager:
             if mode == "full":
                 command.append("--complete")
             warnings = self._execute(command, env)
-            with self.lock:
-                self.state["message"] = "Records updated. Generating HTML figures…"
-            try:
-                warnings |= self._execute(
-                    [sys.executable, "-u", str(self.script_dir / "generate_html.py")], env)
-            except Exception as exc:
-                self._finish("warning", f"Records updated, but HTML generation failed: {exc}")
-                return
             self._finish("warning" if warnings else "succeeded",
                          "Update finished with warnings. Review the log below." if warnings
                          else "Update complete. The dashboard can now use the latest records.")

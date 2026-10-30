@@ -19,4 +19,5 @@ ENV APP_STATE_DIR=/app-state
 ENV DATA_ROOT=/mcs_bead_project
 # SOURCE_DATA_DIR and OUTPUT_ROOT optionally split read-only inputs from outputs.
 # Leave them unset here so existing DATA_ROOT mounts remain compatible.
-CMD ["sh", "-c", "python3 auth.py check && { python3 process_data.py -d \"$DATA_ROOT\" && python3 generate_html.py; exec python3 app.py; }"]
+# HTML exports are optional; the dashboard only needs extracted records.
+CMD ["sh", "-c", "python3 auth.py check && { python3 process_data.py -d \"$DATA_ROOT\"; exec python3 app.py; }"]

@@ -74,7 +74,7 @@ Watch startup progress:
 docker logs -f mcs_bead_dev
 ```
 
-Initial extraction and HTML generation run before the web application starts. Once the server is running, open [http://localhost:8051](http://localhost:8051).
+Initial extraction runs before the web application starts; HTML exports are not generated automatically. Once the server is running, open [http://localhost:8051](http://localhost:8051).
 
 Sign in as `admin` with the password from step 3. You must choose a different password before accessing the dashboard, then sign in again with the new password.
 
@@ -88,7 +88,7 @@ The resulting folders are:
 ├── accounts/
 │   └── app.db            # Accounts, roles and update history
 └── output/
-    ├── extracted/        # CSV, Excel, reports and HTML figures
+    ├── extracted/        # CSV, Excel, reports and optional HTML exports
     └── backup/           # Previous extracted records
 ```
 
@@ -107,6 +107,16 @@ docker inspect mcs_bead_dev \
 ```
 
 `/mcs_bead_project/data` should report `writable=false`; `/output` and `/app-state` should report `writable=true`.
+
+Extraction keeps up to **20 backups** in `$HOME/microscopy-local/output/backup` by default. Older backups are pruned on the next extraction run. These contain previous records and reports; account-database backups are managed separately.
+
+HTML generation is optional and does not run during startup or data updates. Dashboard charts continue to work directly from the extracted records. If you need HTML exports, wait for any data update to finish, then run:
+
+```bash
+docker exec mcs_bead_dev python3 generate_html.py
+```
+
+This reads `output/extracted/records.csv` and rebuilds the HTML exports in `output/extracted/`; it does not read the original input files. Existing HTML exports are left unchanged by data updates and may be out of date until you run this command. There is no HTML-generation button yet.
 
 ### 7. Stop, restart or apply code changes
 

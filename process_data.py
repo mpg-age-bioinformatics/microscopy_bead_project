@@ -166,7 +166,7 @@ parser.add_argument('-d', '--directory', type=str, default=os.environ.get("DATA_
                     help="Legacy root containing data/, extracted/ and backup/ (optional).")
 parser.add_argument('--source-dir', help="Read-only input directory; overrides SOURCE_DATA_DIR.")
 parser.add_argument('--output-root', help="Writable root for extracted/ and backup/; overrides OUTPUT_ROOT.")
-parser.add_argument('-b', '--backup', type=int, default=100, help="Backup number (optional, default: 100).")
+parser.add_argument('-b', '--backup', type=int, default=20, help="Backup number (optional, default: 20).")
 parser.add_argument('-e', '--excel-max-rows', type=int, default=100000,
                     help="Max record rows to still generate records.xlsx; above this it is skipped (optional, default: 100000). Set 0 to disable Excel.")
 parser.add_argument('-c', '--complete', action='store_true',

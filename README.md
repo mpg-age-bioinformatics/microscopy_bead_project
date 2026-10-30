@@ -5,7 +5,7 @@ For the local setup using `$HOME/microscopy-local/data`, `accounts` and `output`
 ### Features
 - Parse data from all the input excel files and store required data in a CSV file
 - Report files which are not parseable or with no target data
-- Store/display target graphs as html with values and warning sign (parameters are flexible)
+- Optionally export target graphs as HTML with values and warning signs using `generate_html.py`
 - Interactive interface (in browser) with option filters and outputs including figures, data, deviations and images
 
 ### Get Started
@@ -68,7 +68,7 @@ docker run -d --rm --name mcs_bead_proj -p 127.0.0.1:8050:8050 \
 
 The extractor never writes to the source directory. CSV, Excel, reports, HTML figures, staging files and extraction backups all go under the output mount. Image previews are read directly from the source mount. Keep the account mount on local storage as described above.
 
-Open [http://localhost:8050/](http://localhost:8050/). The dashboard, images and backend requests all require sign-in. The container extracts data and generates HTML before starting the web application. Check progress with `docker logs -f mcs_bead_proj`.
+Open [http://localhost:8050/](http://localhost:8050/). The dashboard, images and backend requests all require sign-in. The container extracts data before starting the web application; it does not generate HTML exports automatically. Check progress with `docker logs -f mcs_bead_proj`.
 
 `SESSION_COOKIE_SECURE=false` is for local HTTP development only. For a hosted URL, use HTTPS and leave the default secure cookie setting enabled. Deploy with a production WSGI server configured for **one process with multiple request threads** behind your reverse proxy; the included `python3 app.py` command is a local development server. Keep the application's port private to that proxy. The app does not trust forwarded identity or IP headers; its per-peer login throttle is shared by users behind the same proxy, so configure appropriate login rate limits at the proxy for a larger deployment.
 
@@ -117,9 +117,19 @@ Incremental extraction processes only previously unseen paths. Use a full refetc
 
 The Updates page provides **Add new data** and **Rebuild all data** (with confirmation). It shows status, timestamps and the latest 200 log lines. Only one update runs at a time. Update history records the initiating username, mode and outcome in SQLite and survives container replacement. Live logs remain in memory; process output is also available in `docker logs`.
 
-Extraction publishes records atomically, leaving the previous CSV available until extraction finishes. Filters refresh within 15 seconds; press **Submit** to refresh an existing chart. Full refetches use the existing data-backup policy, and an unsuccessful backup aborts extraction. HTML exports run afterwards; their failure is reported separately.
+Extraction publishes records atomically, leaving the previous CSV available until extraction finishes. Filters refresh within 15 seconds; press **Submit** to refresh an existing chart. Full refetches use the existing data-backup policy, and an unsuccessful backup aborts extraction. Updates finish after extraction; HTML exports are optional and are not regenerated automatically. Dashboard charts still use the latest records.
 
 Keep one application process and one container writing to a given data folder. Do not run a separate CLI extraction during an admin update. Restarting the container interrupts any running update; the next startup marks that history entry as interrupted/failed.
+
+#### Optional HTML exports
+
+The standalone `generate_html.py` script remains available. To generate exports manually after an update finishes:
+
+```bash
+docker exec mcs_bead_proj python3 generate_html.py
+```
+
+For the local procedure's container, use `mcs_bead_dev` instead. The script reads the extracted `records.csv` and writes `extracted/figures.html` and `extracted/html/` under the configured output mount. It does not re-read the source data. Existing HTML exports remain unchanged during startup and data updates, so regenerate them manually when you need current exports. There is no HTML-generation button yet.
 
 #### Account recovery and backups
 
@@ -208,12 +218,12 @@ Extracted files are stored in `$OUTPUT_HOST/extracted` on the host (`/output/ext
 - `records.xlsx`: the same records in an excel file
 - `dataless.txt`: contains directories where no target data was found
 - `unprocessed.txt`: contains directories that could not be processed to fetch data
-- `figures.html`: contains base figures in one html file
-- `html`: directory contains html files of individual figures
+- `figures.html`: optional combined figure export, created by manually running `generate_html.py`
+- `html`: directory for optional individual figure exports
 
 #### Backup
 
-Extraction backups are stored in `$OUTPUT_HOST/backup` (`/output/backup` in the container), or `$DATA_ROOT/backup` with the legacy configuration. The last 100 backups are kept by default. Stop the application before restoring previous records into the corresponding `extracted/` directory. These data backups are separate from account-database backups.
+Extraction backups are stored in `$OUTPUT_HOST/backup` (`/output/backup` in the container), or `$DATA_ROOT/backup` with the legacy configuration. The latest 20 backups are kept by default; older ones are pruned on the next extraction run. The CLI `--backup` option can override this limit. Stop the application before restoring previous records into the corresponding `extracted/` directory. These data backups are separate from account-database backups.
 
 ### Troubleshooting
 
