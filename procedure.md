@@ -132,6 +132,8 @@ Sign in as an administrator and open [Downloads](http://localhost:8051/download)
 
 Files that do not yet exist have disabled buttons. Excel and HTML generation become available once `records.csv` exists. Empty text reports mean no paths were listed in that report.
 
+Downloads, backup times, update history and application processing logs all use the server/container's local timezone, without timezone labels. Docker normally defaults to UTC; the browser's timezone does not change these displays. Backup times use the snapshot folder's saved modification timestamp; preserve folder timestamps when moving backups. Existing backup folder names are kept unchanged and may reflect a previous server timezone.
+
 Excel is no longer generated during data updates or saved to the output folder by default. The download prepares a temporary workbook from one complete CSV snapshot, preserving values as text. Large exports may take time; Excel, HTML and backup archives share one export slot, so only one is generated at once. If the data exceeds Excel's limits, use CSV. Any old `output/extracted/records.xlsx` is ignored by Downloads.
 
 HTML is generated from a complete CSV snapshot into a temporary file and downloaded as `figures.html`. The server removes the temporary file when the response closes; it does not retain the report in `output/extracted`. Figures are written one at a time, with Plotly included once to keep the report smaller and usable offline. Plot generation still loads the CSV into memory. Any unavailable figures are identified inside the report.

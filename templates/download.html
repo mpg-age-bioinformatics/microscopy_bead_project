@@ -43,7 +43,7 @@
   <p class="muted">Previous extracted records and processing reports, newest first. Each download contains one backup folder. Account storage is not included.</p>
   {% if backups %}
   <table>
-    <thead><tr><th>Backup</th><th title="Server time recorded in the backup name">Time</th><th>Size (before compression)</th><th>Download</th></tr></thead>
+    <thead><tr><th>Backup</th><th title="Snapshot folder's saved timestamp">Time</th><th>Size (before compression)</th><th>Download</th></tr></thead>
     <tbody>
     {% for backup in backups %}
       <tr>

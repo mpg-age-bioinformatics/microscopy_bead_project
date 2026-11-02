@@ -15,6 +15,11 @@ from auth import admin_required
 logger = logging.getLogger(__name__)
 
 
+def display_time(value):
+    """Show stored UTC instants in the server's local timezone, like its logs."""
+    return datetime.fromisoformat(value).astimezone().strftime("%Y-%m-%d %H:%M:%S") if value else None
+
+
 class UpdateManager:
     """One update at a time in the application's single server process."""
 
@@ -38,7 +43,11 @@ class UpdateManager:
         with self.lock:
             with self.store.connect() as db:
                 history = [dict(row) for row in db.execute("SELECT * FROM updates ORDER BY id DESC LIMIT 10")]
-            return {**self.state, "logs": list(self.logs), "history": history}
+            state = dict(self.state)
+            for update in [state, *history]:
+                for field in ("started_at", "finished_at"):
+                    update[f"{field}_display"] = display_time(update.get(field))
+            return {**state, "logs": list(self.logs), "history": history}
 
     def start(self, mode, username):
         if mode not in ("incremental", "full"):

@@ -3,7 +3,7 @@
 import csv
 from contextlib import ExitStack
 import io
-from datetime import datetime, timezone
+from datetime import datetime
 import logging
 import os
 from pathlib import Path
@@ -44,7 +44,8 @@ def list_backups(directory):
         if not BACKUP_NAME.fullmatch(path.name):
             continue
         try:
-            if not stat.S_ISDIR(path.lstat().st_mode):
+            directory_info = path.lstat()
+            if not stat.S_ISDIR(directory_info.st_mode):
                 continue
             sizes = {}
             for name in BACKUP_FILES:
@@ -59,15 +60,15 @@ def list_backups(directory):
                 if "records.csv" in sizes:
                     size = sum(sizes.values())
                     formatted = f"{size:,} bytes" if size < 1024 else f"{size / 1024:,.1f} KiB"
-                    try:
-                        recorded_time = datetime.strptime(path.name[:15], "%Y%m%d_%H%M%S")
-                        readable_time = recorded_time.strftime("%d %b %Y, %H:%M:%S")
-                    except ValueError:
-                        readable_time = "Unavailable"
-                    backups.append({"name": path.name, "time": readable_time, "size": formatted})
+                    # The extractor preserves snapshot time on the directory.
+                    # Legacy folder names contain no timezone; do not guess one.
+                    saved_at = directory_info.st_mtime
+                    readable_time = datetime.fromtimestamp(saved_at).strftime("%Y-%m-%d %H:%M:%S")
+                    backups.append({"name": path.name, "time": readable_time,
+                                    "saved_at": saved_at, "size": formatted})
         except FileNotFoundError:
             continue  # Retention may prune a backup while the page is loading.
-    return backups
+    return sorted(backups, key=lambda backup: backup["saved_at"], reverse=True)
 
 
 def write_backup(directory, name, destination):
@@ -166,7 +167,7 @@ def register_downloads(server, paths):
             stat = None
         return {
             "available": stat is not None,
-            "modified": datetime.fromtimestamp(stat.st_mtime, timezone.utc).strftime("%Y-%m-%d %H:%M UTC") if stat else None,
+            "modified": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S") if stat else None,
         }
 
     @server.route("/download", strict_slashes=False)

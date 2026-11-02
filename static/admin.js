@@ -41,8 +41,8 @@ function render(state) {
   const timing = [];
   if (state.started_by) timing.push(`By ${state.started_by}`);
   if (state.mode) timing.push(state.mode === "full" ? "Full refetch" : "Incremental update");
-  if (state.started_at) timing.push(`Started ${new Date(state.started_at).toLocaleString()}`);
-  if (state.finished_at) timing.push(`Finished ${new Date(state.finished_at).toLocaleString()}`);
+  if (state.started_at_display) timing.push(`Started ${state.started_at_display}`);
+  if (state.finished_at_display) timing.push(`Finished ${state.finished_at_display}`);
   document.getElementById("timing").textContent = timing.join(" · ");
   const logs = document.getElementById("logs");
   const atBottom = logs.scrollHeight - logs.scrollTop - logs.clientHeight < 40;
@@ -52,7 +52,7 @@ function render(state) {
   history.replaceChildren();
   for (const update of state.history) {
     const row = document.createElement("tr");
-    for (const value of [new Date(update.started_at).toLocaleString(), update.started_by, update.mode, update.status]) {
+    for (const value of [update.started_at_display || "Unavailable", update.started_by, update.mode, update.status]) {
       const cell = document.createElement("td");
       cell.textContent = value;
       row.appendChild(cell);
