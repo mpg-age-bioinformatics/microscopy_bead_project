@@ -198,6 +198,14 @@ Saving changes signs out that user's existing sessions. A regular user can view 
 
 Disabling an account blocks login and invalidates existing sessions while retaining the user record. The last active administrator cannot be disabled or demoted.
 
+### Delete an account
+
+1. Find the account under **Existing users** and expand **Delete account**.
+2. Select the checkbox confirming permanent deletion of that username.
+3. Click **Delete account permanently**.
+
+Deletion removes the account and invalidates its sessions. It keeps extracted data and update history, including the recorded username. You cannot delete your own account or remove the last active administrator. Use **Account enabled** instead when access only needs to be paused. Recreating a deleted username creates a new account; old sessions do not regain access.
+
 ### Reset a user's password
 
 1. Find the account under **Existing users**.

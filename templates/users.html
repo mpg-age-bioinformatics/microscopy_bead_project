@@ -36,6 +36,19 @@
       <button type="submit">Save changes</button>
     </fieldset>
   </form>
+  {% if user.id != g.user.id %}
+  <details>
+    <summary>Delete account</summary>
+    <p class="muted">Permanently remove this account and its access. Update history is retained. To temporarily block access, clear Account enabled instead.</p>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="delete">
+      <input type="hidden" name="user_id" value="{{ user.id }}">
+      <label><input type="checkbox" name="confirm_delete" required> Permanently delete {{ user.username }}. This cannot be undone.</label>
+      <button type="submit" class="secondary">Delete account permanently</button>
+    </form>
+  </details>
+  {% endif %}
 </section>
 {% endfor %}
 </div>

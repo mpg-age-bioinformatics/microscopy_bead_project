@@ -113,6 +113,7 @@ Incremental extraction processes only previously unseen paths. Use a full refetc
 - **Admin:** can also download extracted records and reports, run updates and manage accounts at `/admin/users`.
 - Admins create users with a temporary password and either role. Users must change temporary passwords before accessing data. There is no self-registration or email service.
 - Admins can change roles, disable accounts and reset passwords. Saving account changes invalidates that user's existing sessions. The last active administrator cannot be disabled or demoted.
+- Admins can permanently delete other accounts after explicit confirmation. Deletion invalidates their sessions and preserves update history. Your own account and the last active administrator are protected; disabling remains available for temporary access removal.
 - Passwords are stored as salted scrypt hashes. Sessions expire after eight hours. State-changing forms and update requests require CSRF tokens. Five incorrect password attempts lock an account for five minutes; sign-in requests are also throttled per connecting IP.
 
 The Updates page provides **Add new data** and **Rebuild all data** (with confirmation). It shows status, timestamps and the latest 200 log lines. Only one update runs at a time. Update history records the initiating username, mode and outcome in SQLite and survives container replacement. Live logs remain in memory; process output is also available in `docker logs`.

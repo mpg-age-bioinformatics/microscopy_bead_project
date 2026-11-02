@@ -110,11 +110,41 @@ class AccountStore:
         if role not in ('user', 'admin'):
             raise ValueError("Choose a valid role.")
         with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            user_id = self._remember_user_ids(db) + 1
             try:
-                db.execute("INSERT INTO users (username,password_hash,role) VALUES (?,?,?)",
-                           (username, generate_password_hash(password), role))
+                db.execute("INSERT INTO users (id,username,password_hash,role) VALUES (?,?,?,?)",
+                           (user_id, username, generate_password_hash(password), role))
             except sqlite3.IntegrityError as exc:
                 raise ValueError("That username already exists.") from exc
+
+    @staticmethod
+    def _remember_user_ids(db):
+        # Existing databases use INTEGER PRIMARY KEY without AUTOINCREMENT.
+        # Never recycle a deleted ID: an old signed session could match it.
+        previous = db.execute("SELECT value FROM settings WHERE key='last_user_id'").fetchone()
+        highest = db.execute("SELECT COALESCE(MAX(id), 0) FROM users").fetchone()[0]
+        highest = max(highest, int(previous[0]) if previous else 0)
+        db.execute("INSERT INTO settings (key,value) VALUES ('last_user_id',?) "
+                   "ON CONFLICT(key) DO UPDATE SET value=excluded.value", (str(highest),))
+        return highest
+
+    def delete_user(self, user_id, actor_id):
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            actor = db.execute("SELECT * FROM users WHERE id=?", (actor_id,)).fetchone()
+            if not actor or not actor['active'] or actor['role'] != 'admin':
+                raise ValueError("Only an active administrator can delete accounts.")
+            if user_id == actor_id:
+                raise ValueError("You cannot delete your own account.")
+            user = db.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+            if not user:
+                raise ValueError("User not found.")
+            count = db.execute("SELECT COUNT(*) FROM users WHERE role='admin' AND active=1").fetchone()[0]
+            if user['role'] == 'admin' and user['active'] and count <= 1:
+                raise ValueError("Keep at least one active administrator.")
+            self._remember_user_ids(db)
+            db.execute("DELETE FROM users WHERE id=?", (user_id,))
 
     def edit_user(self, user_id, role, active, password):
         if role not in ('user', 'admin'):
@@ -283,6 +313,11 @@ def register_auth(server):
                     store.edit_user(int(request.form.get('user_id', '0')), request.form.get('role'),
                                     request.form.get('active') == 'on', request.form.get('password', ''))
                     flash("User saved. Their existing sessions have been signed out.", 'success')
+                elif request.form.get('action') == 'delete':
+                    if request.form.get('confirm_delete') != 'on':
+                        raise ValueError("Confirm permanent account deletion first.")
+                    store.delete_user(int(request.form.get('user_id', '0')), g.user['id'])
+                    flash("User deleted. Their existing sessions are no longer valid. Update history was retained.", 'success')
                 else:
                     raise ValueError("Unknown action.")
             except ValueError as exc:
