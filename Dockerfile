@@ -20,4 +20,5 @@ ENV DATA_ROOT=/mcs_bead_project
 # SOURCE_DATA_DIR and OUTPUT_ROOT optionally split read-only inputs from outputs.
 # Leave them unset here so existing DATA_ROOT mounts remain compatible.
 # HTML exports are optional; the dashboard only needs extracted records.
-CMD ["sh", "-c", "python3 auth.py check && { python3 process_data.py -d \"$DATA_ROOT\"; exec python3 app.py; }"]
+# Keep one worker process so update/export locks are shared across requests.
+CMD ["sh", "-c", "python3 auth.py check && { python3 process_data.py -d \"$DATA_ROOT\"; exec gunicorn --bind 0.0.0.0:8050 --workers 1 --threads 4 app:server; }"]
