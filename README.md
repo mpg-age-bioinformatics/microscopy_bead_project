@@ -2,6 +2,8 @@
 
 For the local setup using `$HOME/microscopy-local/data`, `accounts` and `output`, follow [Deploy Locally and Manage User](procedure.md).
 
+For web deployment with your hostname, certificates and storage paths, follow the [deployment guide](deployment/README.md).
+
 ### Features
 - Parse data from all the input excel files and store required data in a CSV file
 - Report files which are not parseable or with no target data

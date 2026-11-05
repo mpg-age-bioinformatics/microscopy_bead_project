@@ -1,0 +1,12 @@
+{
+    # Use supplied certificates. Only HTTPS is exposed.
+    auto_https off
+    servers {
+        protocols h1 h2
+    }
+}
+
+https://{$SITE_HOST} {
+    tls /certs/fullchain.pem /certs/privkey.pem
+    reverse_proxy app:8050
+}

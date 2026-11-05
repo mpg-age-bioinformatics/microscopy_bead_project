@@ -1,0 +1,71 @@
+name: microscopy-web
+
+services:
+  app:
+    image: mpgagebioinformatics/mcs_bead_proj:web
+    restart: unless-stopped
+    environment:
+      SOURCE_DATA_DIR: /mcs_bead_project/data
+      OUTPUT_ROOT: /output
+      APP_STATE_DIR: /app-state
+      SESSION_COOKIE_SECURE: "true"
+    volumes:
+      - type: bind
+        source: ${SOURCE_DATA_HOST:?Set SOURCE_DATA_HOST in .env}
+        target: /mcs_bead_project/data
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${RUNTIME_ROOT:?Set RUNTIME_ROOT in .env}/accounts
+        target: /app-state
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${RUNTIME_ROOT:?Set RUNTIME_ROOT in .env}/output
+        target: /output
+        bind:
+          create_host_path: false
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      SITE_HOST: ${SITE_HOST:?Set SITE_HOST in .env}
+    depends_on:
+      - app
+    ports:
+      - "443:443/tcp"
+    volumes:
+      - type: bind
+        source: ./Caddyfile
+        target: /etc/caddy/Caddyfile
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${RUNTIME_ROOT:?Set RUNTIME_ROOT in .env}/certs
+        target: /certs
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${RUNTIME_ROOT:?Set RUNTIME_ROOT in .env}/caddy-data
+        target: /data
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${RUNTIME_ROOT:?Set RUNTIME_ROOT in .env}/caddy-config
+        target: /config
+        bind:
+          create_host_path: false
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
