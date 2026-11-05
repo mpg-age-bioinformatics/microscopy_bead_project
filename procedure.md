@@ -46,7 +46,7 @@ docker run --rm -it \
   mcs_bead_proj:dev python3 auth.py init --username admin
 ```
 
-Enter a password between 12 and 256 characters when prompted. This creates the initial `admin` account. Initialization refuses to overwrite an existing database.
+Enter a password between 8 and 256 characters when prompted. This creates the initial `admin` account. Initialization refuses to overwrite an existing database.
 
 ### 4. Start the application
 
@@ -174,7 +174,7 @@ Sign in as an administrator and open [Users](http://localhost:8051/admin/users),
 ### Add a user
 
 1. Under **Add a user**, enter a username of 3–64 characters: lowercase letters, numbers, dots, underscores or hyphens. The first character must be a letter or number.
-2. Enter a temporary password between 12 and 256 characters.
+2. Enter a temporary password between 8 and 256 characters.
 3. Select **User** or **Admin** under **Access**.
 4. Click **Create user**.
 5. Share the username and temporary password privately with the user.

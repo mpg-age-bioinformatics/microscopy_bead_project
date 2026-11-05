@@ -40,7 +40,7 @@ docker run --rm -it \
   mcs_bead_proj python3 auth.py init --username admin
 ```
 
-The command prompts for a password of at least 12 characters. It creates `app.db` with password hashes, roles, a session-signing secret and update history. Initialization refuses to overwrite an existing database. The initial administrator must change their password at first sign-in. For unattended initialization, supply `INITIAL_ADMIN_PASSWORD` to this one-time command; normal startup does not read it or reset any credentials.
+The command prompts for a password of at least 8 characters. It creates `app.db` with password hashes, roles, a session-signing secret and update history. Initialization refuses to overwrite an existing database. The initial administrator must change their password at first sign-in. For unattended initialization, supply `INITIAL_ADMIN_PASSWORD` to this one-time command; normal startup does not read it or reset any credentials.
 
 #### Run Docker Container
 

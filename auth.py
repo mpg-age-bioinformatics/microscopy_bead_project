@@ -19,8 +19,8 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 
 def validate_password(password):
-    if not 12 <= len(password) <= 256:
-        raise ValueError("Use a password between 12 and 256 characters.")
+    if not 8 <= len(password) <= 256:
+        raise ValueError("Use a password between 8 and 256 characters.")
 
 
 def validate_username(username):
@@ -339,7 +339,7 @@ if __name__ == '__main__':
             store.secret_key()
         else:
             from getpass import getpass
-            password = os.environ.get('INITIAL_ADMIN_PASSWORD') or getpass('Admin password (at least 12 characters): ')
+            password = os.environ.get('INITIAL_ADMIN_PASSWORD') or getpass('Admin password (at least 8 characters): ')
             if args.action == 'init':
                 store.initialize(args.username, password)
             else:
