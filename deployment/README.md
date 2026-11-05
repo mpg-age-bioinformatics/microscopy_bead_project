@@ -10,9 +10,35 @@ Deploy the published `mpgagebioinformatics/mcs_bead_proj:web` image with Docker 
 - A persistent local directory for accounts, output and certificates.
 - A valid PEM certificate chain for the hostname and matching private key without an interactive passphrase.
 
-## 1. Set your deployment variables
+## 1. Copy the deployment files
 
-Copy the repository's `deployment` directory to the server, or use it from a checkout. Run the commands below in that directory using Bash.
+Simply copy the repository's `deployment` directory to the server.
+On your **local computer**, open Bash in the repository root. Replace the example values with your SSH destination and the absolute runtime path **on the server**:
+
+```bash
+export SSH_TARGET="user@server.example.org"
+export RUNTIME_ROOT="/absolute/path/to/runtime"
+
+ssh "$SSH_TARGET" "mkdir -p -- $(printf '%q' "$RUNTIME_ROOT/deployment")"
+
+scp deployment/compose.yaml deployment/Caddyfile deployment/.env.example \
+  "$SSH_TARGET:$RUNTIME_ROOT/deployment/"
+
+ssh "$SSH_TARGET"
+```
+
+This copies the configuration templates without overwriting an existing server `.env`. 
+
+You are now on the **server**. Local exports do not carry into the SSH session, so set the same runtime path again and enter the deployment directory:
+
+```bash
+export RUNTIME_ROOT="/absolute/path/to/runtime"
+cd "$RUNTIME_ROOT/deployment"
+```
+
+Run all remaining commands on the server in this directory using Bash.
+
+## 2. Set your deployment variables
 
 ```bash
 cp -n .env.example .env
@@ -26,13 +52,13 @@ RUNTIME_ROOT=
 SITE_HOST=
 ```
 
-| Variable | Value to provide |
-| --- | --- |
-| `SOURCE_DATA_HOST` | Absolute host path to the input data directory containing the source folders |
-| `RUNTIME_ROOT` | Absolute host path to persistent application storage, outside the source directory and repository |
-| `SITE_HOST` | Website hostname, such as `microscopy.example.org`, without `https://` or a path |
+| Variable | Value to provide | Example |
+| --- | --- | --- |
+| `SOURCE_DATA_HOST` | Absolute host path to the input data directory containing the source folders | `/srv/mcs_bead_project/data` |
+| `RUNTIME_ROOT` | Absolute host path to persistent application storage, outside the source directory and repository | `$HOME/microscopy-web` |
+| `SITE_HOST` | Website hostname, such as `microscopy.example.org`, without `https://` or a path | `mcs-bead-project.age.mpg.de` |
 
-Use absolute paths rather than `~`. Quote paths containing spaces. Keep the same `RUNTIME_ROOT` when replacing containers to retain users and output.
+Use absolute paths rather than `~`. Quote paths containing spaces. Set `RUNTIME_ROOT` to the same server path used in the copy step. Keep it unchanged when replacing containers to retain users and output.
 
 Load your edited `.env` into the shell for the commands in this guide. Repeat this when opening a new shell or changing the values:
 
@@ -47,7 +73,7 @@ set +a
 
 Only source the `.env` file you created and edited. Shell variables override Compose's `.env` values, so reload it after edits.
 
-## 2. Check the source and create storage
+## 3. Check the source and create storage
 
 ```bash
 docker run --rm \
@@ -71,7 +97,7 @@ Confirm the expected source folders appear. If access fails, check the mount and
 
 `<SOURCE_DATA_HOST>` and `<RUNTIME_ROOT>` above mean the values you configured. All generated data goes under `RUNTIME_ROOT`; existing extracted data or backups beside the source are not used.
 
-## 3. Install the certificate
+## 4. Install the certificate
 
 Set these shell variables to the supplied PEM files, replacing the example paths:
 
@@ -88,7 +114,7 @@ openssl x509 -in "$RUNTIME_ROOT/certs/fullchain.pem" \
 
 The hostname must match and the certificate must be valid. The chain must start with the server certificate, followed by intermediate certificates. Keep private keys, account databases and your local `.env` outside Git and Docker images.
 
-## 4. Pull and validate
+## 5. Pull and validate
 
 ```bash
 docker compose config --quiet
@@ -99,7 +125,7 @@ docker compose run --rm --no-deps caddy \
 
 Continue when validation succeeds. Caddy reads `SITE_HOST` from the container environment using its [environment-variable syntax](https://caddyserver.com/docs/caddyfile/concepts#environment-variables). Automatic certificate issuance and renewal are disabled because this setup uses supplied certificates; HTTPS remains enabled.
 
-## 5. Create the administrator once
+## 6. Create the administrator once
 
 **Skip this step if `<RUNTIME_ROOT>/accounts/app.db` already exists.**
 
@@ -109,7 +135,7 @@ docker compose run --rm --no-deps app python3 auth.py init --username admin
 
 Enter a password of 8–256 characters. You must change it at first sign-in. Do not rerun initialization for an image update.
 
-## 6. Start and verify
+## 7. Start and verify
 
 ```bash
 docker compose up -d
