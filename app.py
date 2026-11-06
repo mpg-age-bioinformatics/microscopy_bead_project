@@ -67,7 +67,7 @@ def to_options(series):
         return str(v)
     return [{'label': fmt(v), 'value': v} for v in series.dropna().unique()]
 
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+app = dash.Dash(__name__, title="Microscopy Bead Project", external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 server = app.server
 account_store = register_auth(server)
