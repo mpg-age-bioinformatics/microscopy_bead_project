@@ -134,10 +134,20 @@ def dashboard_layout():
                         }
                     ),
 
-                    # Second Column: Markdown Section
+                    # Keep the loader mounted while the callback builds the tabs.
                     dbc.Col(
                         [
-                            html.Div(id="tab-output"),
+                            dcc.Loading(
+                                id="loading-tab-output",
+                                children=html.Div(
+                                    id="tab-output",
+                                    style={"minHeight": "300px"},
+                                ),
+                                type="circle",
+                                fullscreen=False,
+                                show_initially=False,
+                                target_components={"tab-output": "children"},
+                            ),
                         ],
                         xs=12, sm=12, md=6, lg=8, xl=9,
                         style={"margin-bottom": "50px"}
@@ -181,7 +191,11 @@ def refresh_filters(_):
     State("opt-date", "start_date"),
     State("opt-date", "end_date"),
     State("opt-consider-limit", "value"),
-    State("opt-warning-percentage", "value")
+    State("opt-warning-percentage", "value"),
+    running=[
+        (Output("submit-button-state", "disabled"), True, False),
+        (Output("submit-button-state", "children"), "Loading…", "Submit"),
+    ],
 )
 def update_output(n_clicks, microscope, objective, test, bead_size, bead_number, start_date, end_date, consider_limit, warning_percentage):
     if not n_clicks:
@@ -258,42 +272,22 @@ def update_output(n_clicks, microscope, objective, test, bead_size, bead_number,
     output=dcc.Tabs( 
         [ 
             dcc.Tab(
-                dcc.Loading(
-                    id="loading-output-1",
-                    type="default",
-                    children=[ figure_tab ],
-                    style={"margin-top":"50%","height": "100%"} 
-                ), 
+                figure_tab,
                 label="Figure", id="tab-figure",
                 style={"margin-top":"0%"}
             ),
             dcc.Tab(
-                dcc.Loading(
-                    id="loading-output-2",
-                    type="default",
-                    children=[ considered_tab ],
-                    style={"margin-top":"50%","height": "100%"} 
-                ), 
+                considered_tab,
                 label="Data", id="tab-considered",
                 style={"margin-top":"0%"}
             ),
             dcc.Tab(
-                dcc.Loading(
-                    id="loading-output-4",
-                    type="default",
-                    children=[ change_tab ],
-                    style={"margin-top":"50%","height": "100%"} 
-                ), 
+                change_tab,
                 label="Deviation", id="tab-change",
                 style={"margin-top":"0%"}
             ),
             dcc.Tab(
-                dcc.Loading(
-                    id="loading-output-3",
-                    type="default",
-                    children=[ bead_tab ],
-                    style={"margin-top":"50%","height": "100%"} 
-                ), 
+                bead_tab,
                 label="Image", id="tab-bead",
                 style={"margin-top":"0%"}
             )
