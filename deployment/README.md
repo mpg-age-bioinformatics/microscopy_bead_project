@@ -55,10 +55,12 @@ SITE_HOST=
 | Variable | Value to provide | Example |
 | --- | --- | --- |
 | `SOURCE_DATA_HOST` | Absolute host path to the input data directory containing the source folders | `/srv/mcs_bead_project/data` |
-| `RUNTIME_ROOT` | Absolute host path to persistent application storage, outside the source directory and repository | `$HOME/microscopy-web` |
+| `RUNTIME_ROOT` | Absolute host path to persistent application storage, outside the source directory and repository | `/local/microscopy-web` |
 | `SITE_HOST` | Website hostname, such as `microscopy.example.org`, without `https://` or a path | `mcs-bead-project.age.mpg.de` |
 
 Use absolute paths rather than `~`. Quote paths containing spaces. Set `RUNTIME_ROOT` to the same server path used in the copy step. Keep it unchanged when replacing containers to retain users and output.
+
+The example `/local/microscopy-web` assumes your server has a writable, persistent filesystem at `/local`. Choose a path appropriate for your server and ensure its filesystem is mounted before the containers start after a reboot.
 
 Load your edited `.env` into the shell for the commands in this guide. Repeat this when opening a new shell or changing the values:
 
@@ -195,6 +197,8 @@ docker compose logs -f app caddy
 Docker logs rotate at 10 MB per file, up to 3 files per container, and are removed with the container. The admin page keeps the latest 200 detailed log lines in memory, cleared on restart or the next update. Update summaries persist in the database.
 
 Back up `RUNTIME_ROOT`, especially `accounts` and `output`, with restricted access to private keys. Use a SQLite-aware backup or stop the application while copying its database. The 20 extraction snapshots do not back up user accounts. Arrange source-data backups separately and monitor free space for both runtime storage and Docker.
+
+If you relocate runtime storage, stop the deployment before copying the entire directory with ownership and permissions preserved. Update `RUNTIME_ROOT` in the copied deployment's `.env`, validate and start from the new deployment directory, and update the server backup configuration to use the new path. Reuse the copied account database; do not initialize accounts again. Keep the old copy until the new deployment and backups are verified.
 
 To stop the deployment without deleting persistent data:
 
