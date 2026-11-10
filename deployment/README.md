@@ -1,6 +1,8 @@
 # WEB deployment
 
-Deploy the published `mpgagebioinformatics/mcs_bead_proj:web` image with Docker Compose and Caddy. This setup uses a certificate supplied by your organization or certificate provider. Only TCP port **443** is published; application port 8050 stays inside the Docker network.
+For a setup on your own computer, use the [local deployment guide](LOCAL.md). See the [main README](../README.md) for data preparation and interface features.
+
+Deploy the published `mpgagebioinformatics/mcs_bead_proj:web` image with Docker Compose and Caddy. This setup uses a certificate supplied by your organization or certificate provider. Only TCP port **443** is published with network restrictions; application port 8050 stays inside the Docker network.
 
 ## Requirements
 
