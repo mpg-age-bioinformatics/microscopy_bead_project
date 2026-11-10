@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block content %}
+<section class="narrow">
+  <h1>Microscopy Bead Project</h1>
+  <p class="muted">Sign in with the account provided by your administrator.</p>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="username">Username</label>
+    <input id="username" name="username" autocomplete="username" maxlength="64" required autofocus>
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" maxlength="256" required>
+    <button type="submit">Sign in</button>
+  </form>
+  <p class="muted" style="margin-top: 20px">Forgot your password? Ask an administrator to reset it.</p>
+</section>
+{% endblock %}

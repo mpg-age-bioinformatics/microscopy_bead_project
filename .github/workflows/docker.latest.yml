@@ -7,14 +7,22 @@ on:
     tags-ignore:
     - '**'
     
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
+      with:
+        persist-credentials: false
     - name: Build the Docker image
+      env:
+        DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
+        DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
       run: | 
-        echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin docker.io
+        printf '%s' "$DOCKER_HUB_TOKEN" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin docker.io
         docker buildx create --name mybuilder --driver docker-container --bootstrap --use
         docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
         docker buildx build --platform linux/amd64,linux/arm64 --no-cache -t docker.io/mpgagebioinformatics/mcs_bead_proj:latest --push .
@@ -22,6 +30,8 @@ jobs:
     - name: Set Success env
       run: echo "GITHUB_SHA_SHORT=$(echo $GITHUB_SHA | cut -c 1-8)" >> $GITHUB_ENV
     - name: Slack Success Notification
+      env:
+        SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
       run: | 
         generate_post_data()
         {
@@ -31,11 +41,13 @@ jobs:
         }
         EOF
         } 
-        curl -H "Content-Type: application/json" -X POST -d "$(generate_post_data)" ${{ secrets.SLACK_WEBHOOK }}
+        curl -H "Content-Type: application/json" -X POST -d "$(generate_post_data)" "$SLACK_WEBHOOK"
     - name: Set Failure env
       if: failure()
       run: echo "GITHUB_SHA_SHORT=$(echo $GITHUB_SHA | cut -c 1-8)" >> $GITHUB_ENV
     - name: Slack Failure Notification
+      env:
+        SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
       if: failure()
       run: | 
         generate_post_data()
@@ -46,4 +58,4 @@ jobs:
         }
         EOF
         } 
-        curl -H "Content-Type: application/json" -X POST -d "$(generate_post_data)" ${{ secrets.SLACK_WEBHOOK }}
+        curl -H "Content-Type: application/json" -X POST -d "$(generate_post_data)" "$SLACK_WEBHOOK"

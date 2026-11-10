@@ -1,0 +1,45 @@
+# Repository metadata and local development files
+.git
+.github
+.DS_Store
+**/__pycache__
+**/*.pyc
+.venv
+venv
+
+# Deployment secrets and account databases
+**/.env
+**/.env.*
+**/.aws
+**/.ssh
+**/.docker
+**/credentials
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/*.db
+**/*.db-*
+**/*.sqlite
+**/*.sqlite3
+**/*.sqlite-*
+**/*.sqlite3-*
+accounts
+app-state
+certs
+secrets
+
+# Mounted source data and generated output do not belong in the image
+data
+output
+extracted
+backup
+records.csv
+records.xlsx
+unprocessed.txt
+dataless.txt
+figures.html
+**/*.log
+**/*.tar
+**/*.tar.gz
+**/*.zip

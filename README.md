@@ -1,157 +1,160 @@
-# microscopy_bead_project
+# Microscopy Bead Project
 
-### Features
-- Parse data from all the input excel files and store required data in a CSV file
-- Report files which are not parseable or with no target data
-- Store/display target graphs as html with values and warning sign (parameters are flexible)
-- Interactive interface (in browser) with option filters and outputs including figures, data, deviations and images
+Extract microscopy quality-control measurements from Excel files and explore them through an authenticated browser interface. Filter records, view interactive figures and deviations, inspect related images, and download reports.
 
-### Get Started
+## Deployment
 
-Prerequisite: Docker
+Choose the guide for your environment:
 
-#### Data Storage
+- [Local deployment](deployment/LOCAL.md): run on your computer with Docker, including development, troubleshooting and account recovery.
+- [Web deployment](deployment/README.md): serve the application over HTTPS with Docker Compose, Caddy and persistent storage.
 
-Create a data folder where the input data should be stored
-```
-mkdir -p /Volumes/group_fi/group/Microscopy/Metrology/mcs_bead_project/data
-```
+## Features
 
-Please store all your input data inside `data` directory with proper format ([check data preparation](https://github.com/mpg-age-bioinformatics/microscopy_bead_project/?tab=readme-ov-file#data-preparation)). For the Centricity / Homogeneity (`TCenHom`) test, follow the dedicated naming convention in [naming_cases.md](naming_cases.md). Of course, you can choose a different data folder of your preference. However, you have to modify the commands accordingly in that case.
+- Extract measurements from `.xls` files into a shared CSV dataset.
+- Filter by microscope, objective, test, bead size, bead number and date range.
+- View interactive figures, underlying data, deviations and related images.
+- Use local accounts with user and administrator roles; the entire interface requires sign-in.
+- Run incremental updates or a full rebuild from the admin interface.
+- Download CSV, Excel, processing reports, interactive HTML and extraction backups.
+- Keep source data read-only, with extracted data and accounts in separate persistent storage.
 
-#### Run Docker Container (using the latest stable image)
-```
-docker stop mcs_bead_proj
-docker pull mpgagebioinformatics/mcs_bead_proj:stable
-docker run -d --rm --name mcs_bead_proj -p 8050:8050 -v /Volumes/group_fi/group/Microscopy/Metrology/mcs_bead_project:/mcs_bead_project mpgagebioinformatics/mcs_bead_proj:stable
-```
-This will fetch target data to a CSV file (in `extracted/records.csv`), generate base html figures (in `extracted/`) and web application accessible through: http://localhost:8050/
+## Data preparation
 
-You can change `stable` tag to `latest`, or a tag of your preference (image repo: https://hub.docker.com/r/mpgagebioinformatics/mcs_bead_proj).
-Also, can remove the `-d` flag to get the state/logs of the running container.
+Place input `.xls` files and related images inside the configured source-data directory. Preserve the folder structure; the extractor searches the filename and its parent folders for measurement metadata.
 
-If necessary, you can check the live logs with:
-```
-docker logs -f mcs_bead_proj
+For bead measurements, use this naming scheme:
+
+```text
+<date>_M<microscope>_O<objective>_T<test>_S<bead_size>_B<bead_number>
 ```
 
-#### Update/Add Data
+The date must use `YYYYMMDD`. Either of these paths can provide the required metadata:
 
-After adding or updating data in `/mcs_bead_project/data` directory you can re-run the earlier three docker commands or simply restart to get the latest ouputs:
-```
-docker restart mcs_bead_proj
-```
-
-**Incremental processing (default):** to keep restarts fast on a large, growing data folder, the extractor by default only parses files it has **not seen before** and appends their records — it does not re-read the whole tree every time. Newly added files/folders are picked up automatically; a restart with no new data is nearly instant.
-
-**Full re-fetch:** because incremental processing is append-only, it does **not** remove records for files that were **deleted or renamed**. To rebuild `records.csv` from scratch (e.g. after deleting/renaming data, or to be safe), run the container once with the `COMPLETE` environment variable set:
-```
-docker run -d --rm --name mcs_bead_proj -e COMPLETE=true -p 8050:8050 -v /Volumes/group_fi/group/Microscopy/Metrology/mcs_bead_project:/mcs_bead_project mpgagebioinformatics/mcs_bead_proj:stable
-```
-(The schema is also checked automatically — if the record format changes in a new image version, a full rebuild is done for you on the next run.)
-
-#### Stop Docker Container
-
-To stop the running container:
-```
-docker stop mcs_bead_proj
-```
-
-#### Development
-
-Clone `microscope_bead_project` repo
-```
-git clone https://github.com/mpg-age-bioinformatics/microscopy_bead_project.git
-```
-or download the repo
-
-Navigate to the repo directory (e.g. `cd microscope_bead_project`) and the run docker build:
-```
-docker build -t mcs_bead_proj .
-```
-
-Mounting the scripts would enable to run the app in the development mode (change `~/mcs_bead_project` to your preferred path):
-```
-docker run --rm --name mcs_bead_proj -p 8050:8050 -v $(pwd):/app -v ~/mcs_bead_project:/mcs_bead_project mcs_bead_proj
-```
-
-### Components
-
-#### Data Preparation
-
-This program extracts the data from the excel (`.xls`) files, stored in the `data` folder.
-
-The naming scheme, the extractor will look for is: `<date>_M<microscope>_O<objective>_T<test>_S<bead_size>_B<bead_number>`. Either the filename itself or any parent folders of the file should contain the naming scheme. For example, from both of the followings, data can be extracted:
-```
+```text
 /Path/A/B/C/20250108_MAndorDragonfly_O100x1.45_TChromDual_S1.0_B0_other_text.xls
 /Path/20250108_MAndorDragonfly_O100x1.45_TChromDual_S1.0_B0/A/B/file.xls
 ```
 
-The simplest way of preparing data possibly be to just modify the folder name in `Bead` level directory that complies with `<date>_M<microscope>_O<objective>_T<test>_S<bead_size>_B<bead_number>` format, and leave the rest as it is.
-Also, please note, the <date> should contain the format of `YYYYMMDD`.
+A simple approach is to rename the bead-level directory to match this pattern and leave its contents unchanged. For Centricity / Homogeneity (`TCenHom`) measurements, follow the dedicated [naming conventions](naming_cases.md).
 
-#### Microscopy Bead Project App
+To add a microscope, objective or test, add correctly named data files and ask an administrator to run **Add new data**. No code change is required. Empty folders alone do not appear in the filters.
 
-Web app can be accessed from your browser with: http://localhost:8050/
+## Using the interface
 
-Filter Options: Microscope, Objective, Test, Bead Size, Bead Number, Date Range, Consider Previous Values for Line Deviation, Warning Percentage
+### Sign in
 
-Output Tabs:
-- Figure (plotly output diagram)
-- Data (data table from inputs that generates the diagram)
-- Deviation (data table depicts the deviations in different lines)
-- Image (related bead images)
+Open the URL localhost or web url and sign in. New accounts and accounts with reset passwords must change their temporary password before accessing data.
 
-#### Extracted
+Use **Account / sign out** to change your own password or sign out. There is no self-registration or password-reset email service; contact someone with admin access if you cannot sign in.
 
-All important extracted files fetched from the input data will be stored in `~/mcs_bead_project/extracted`
+### Dashboard
 
-`extracted` directory contains the following:
-- `records.csv`: primary file that stores all the fetched records from the input directory
-- `records.xlsx`: the same records in an excel file
-- `dataless.txt`: contains directories where no target data was found
-- `unprocessed.txt`: contains directories that could not be processed to fetch data
-- `figures.html`: contains base figures in one html file
-- `html`: directory contains html files of individual figures
+Choose filters in the sidebar, then click **Submit**:
 
-#### Backup
+| Filter | Purpose |
+| --- | --- |
+| Microscope, Objective, Test | Select the measurements to examine |
+| Bead Size, Bead Number | Narrow the bead selection |
+| Date Range | Restrict the measurement dates |
+| Consider Previous Values for Line Deviation | Set how many previous values are considered for deviation calculations |
+| Warning Percentage | Set the deviation warning threshold |
 
-Backups from previously extracted files are stored in `~/mcs_bead_project/backup`.
-By default last 100 extracted backups would be stored. If something goes wrong, you can always get back to previous version of fetched data by copying them to `~/mcs_bead_project/extracted` directory.
+A loading animation appears in the results area while the output is prepared. The sidebar remains visible, and Submit is temporarily disabled.
 
-### Troubleshooting
+| Output tab | Contents |
+| --- | --- |
+| Figure | Interactive Plotly chart |
+| Data | Records used to generate the chart |
+| Deviation | Calculated deviations |
+| Image | Related bead images read from the source directory |
 
-#### Preparing Docker on your laptop
+After a data update, filter options refresh within 15 seconds. Press **Submit** again to refresh an existing chart.
 
-- **Give Docker enough resources.** The data folder can be large and keeps growing, so allocate sufficient memory (and CPU/disk) to Docker under **Docker Desktop → Settings → Resources** — increasing the **Memory** limit (e.g. to 8 GB or more) is the most important and helps avoid out-of-memory crashes (exit code `137`). Apply & Restart after changing it.
-- **Make sure the data path is accessible.** Before running, confirm the folder you pass to `-v` (e.g. `/Volumes/group_fi/.../mcs_bead_project`) actually **exists and is reachable from your machine**. If it lives on a network share, **mount/connect it first** (e.g. in Finder) — if Docker cannot reach the path you will get a `mount source path ... permission denied` or "no such file or directory" error.
-- **Data on a network drive (macOS):** if your data folder lives on a mounted network share (e.g. `/Volumes/group_fi/...`), Docker may need explicit permission to see it:
-  - Make sure the share is actually **mounted in Finder** before you run `docker`.
-  - Add the path (if `/Volumes` is not already there) under **Docker Desktop → Settings → Resources → File Sharing** (e.g. `/Volumes/group_fi`), then **Apply & Restart**.
-  - If it still fails, grant **Docker Desktop** *Full Disk Access* (System Settings → Privacy & Security), or use a **local** folder for the `-v` mount instead of the network drive.
+### Access levels
 
-#### "permission denied" errors
+| Role | Permissions |
+| --- | --- |
+| User | View the dashboard, data, figures and images; change their password; sign out |
+| Admin | All user permissions, plus download reports and backups, update data and manage accounts |
 
-- `error while creating mount source path '...': ... permission denied` — Docker cannot access the **mounted folder** (commonly a network drive). See the File Sharing notes above; this is *not* an image or daemon problem.
+### Manage users
 
-#### Cannot open http://localhost:8050/
+Administrators open **Users** at `/admin/users`.
 
-1. **Is the container running?** Run `docker ps` and look for `mcs_bead_proj`. If it is not listed, it has stopped.
-2. **Give the first run time.** On startup the container scans all data and builds the records *before* the web app starts — this can take some time on large or network folders. The page is only available once that finishes.
-3. **Check the logs:** `docker logs mcs_bead_proj` (add `-f` to follow live). Any error or crash is reported there.
-4. **Crashed and disappeared?** The `docker run` command uses `--rm`, so a crashed container is removed automatically. Re-run **without** `-d` to watch the live output, or read the logs before it exits.
-5. **Port already in use:** if something else uses port 8050, map a different one, e.g. `-p 8051:8050`, and open http://localhost:8051/ (or simply free up the 8050 port by stoping the other container/service).
+- **Add a user:** enter a username, temporary password and access role, then click **Create user**. Usernames use 3–64 lowercase letters, numbers, dots, underscores or hyphens and start with a letter or number. Passwords must contain 8–256 characters. Share credentials privately; the user must change the temporary password at first sign-in.
+- **Change a role:** select User or Admin and save. Leave the reset-password field empty to retain the password.
+- **Disable or re-enable:** change **Account enabled** and save. Disabling blocks access while keeping the account record.
+- **Reset a password:** enter a new temporary password and save. The user must change it before accessing data again.
+- **Delete an account:** expand **Delete account**, confirm the username using the checkbox, and click **Delete account permanently**. Deletion preserves extracted data and update history. Use disabling for temporary access removal.
 
-#### General health checks
+Saved account changes invalidate that user's existing sessions. You cannot delete your own account or delete, disable or demote the last active administrator. Recreating a deleted username does not reactivate its old sessions.
 
-- `docker ps` / `docker ps -a` — see running vs. exited containers. Note the **exit code**: `137` means the container ran **out of memory**.
-- `docker logs mcs_bead_proj` — application logs, including the data-processing summary, warnings, and errors.
-- **Out of memory (exit 137):** increase Docker Desktop's memory limit (Settings → Resources). The tool already streams output and skips the optional `records.xlsx` above a row limit to keep memory low.
+Passwords are stored as salted scrypt hashes. Sessions expire after eight hours. Five incorrect password attempts lock an account for five minutes, and sign-in requests are also throttled per connecting IP. State-changing requests require CSRF tokens.
 
-#### Adding a new microscope or new data
+### Update data
 
-No code change or action from us is needed. Place the `.xls` files so the path contains the naming scheme with the new token (e.g. `_M<microscope>`; see [Data Preparation](#data-preparation)), then run `docker restart mcs_bead_proj` so the data is re-scanned. The new microscope/objective/test then appears in the filters automatically. **An empty folder alone will not appear** — it must contain the data files with the correct names.
+Administrators open **Updates** at `/admin`:
 
-### Support
-For any query and support, please do not hesitate to get in touch through: bioinformatics@age.mpg.de
+| Action | When to use it |
+| --- | --- |
+| Add new data | Process previously unseen source paths |
+| Rebuild all data | Re-read everything after editing, deleting or renaming files, or retry previously unprocessed/dataless files |
 
+A full rebuild requires confirmation. A schema change also triggers a full rebuild automatically. Incremental updates do not re-read files already tracked at the same path.
+
+Only one update runs at a time. The page shows status, timestamps, the latest 200 log lines and the 10 most recent update-history entries. History records the initiating user, mode and result and persists with the accounts database. Detailed live logs clear on restart or the next update.
+
+Extraction publishes the CSV atomically, keeping the previous dataset available until the replacement is ready. An unsuccessful backup aborts extraction. Updates do not automatically generate Excel or HTML exports.
+
+### Downloads
+
+Administrators open **Downloads** at `/download`. Regular users cannot access this page or its direct download routes.
+
+| Download | Contents |
+| --- | --- |
+| `records.csv` | Latest published records |
+| Excel | A fresh `records.xlsx` generated from the current CSV |
+| `unprocessed.txt` | Paths that could not be recognized or processed |
+| `dataless.txt` | Recognized paths with no usable target measurements |
+| HTML report | A fresh combined report with interactive figures and deviation tables; opens offline |
+| Backup `.tar.gz` | One selected extraction snapshot |
+
+Unavailable files have disabled buttons. Empty processing reports are valid downloads. Excel, HTML and backup archives are generated temporarily and removed after the response closes; they are not saved as permanent exports. Only one generated export runs at a time. Large reports may take time.
+
+Excel reads a complete CSV snapshot and preserves values as text, including values that resemble formulas. If Excel's size limits are exceeded, use CSV. Old saved Excel or HTML files are not served by these buttons.
+
+HTML reports include Plotly once and identify combinations for which no figure could be produced. The optional `generate_html.py` script remains available for explicitly saving combined and individual reports; see the [local guide](deployment/LOCAL.md#optional-saved-exports).
+
+### Extraction backups
+
+The Downloads page lists completed snapshots newest first, with readable times, uncompressed sizes and **Download .tar.gz** buttons. Each archive contains a timestamped folder with `records.csv` and any saved `unprocessed.txt` and `dataless.txt` reports. Source files, account data, symbolic links and unrelated files are excluded.
+
+Up to **20 snapshots** are retained by default; older snapshots are pruned during extraction. If a snapshot disappears before download, refresh the list. Unchanged records do not create another identical backup.
+
+These are extraction snapshots, not complete application backups. The interface does not restore snapshots or back up user accounts. Account storage needs a separate backup as described in the deployment guides.
+
+### Times and logs
+
+Downloads, backup times, recent updates and processing logs use the server/container's local timezone, without timezone labels. Docker normally defaults to UTC; changing the browser timezone does not change these displays. Backup times use folder modification timestamps, so preserve timestamps when moving snapshots.
+
+## Data storage
+
+The source directory is read-only in the recommended deployments. Generated files go into a separate output directory, and `app.db` holds accounts, the session-signing secret and update history in local persistent storage.
+
+| Output path | Purpose |
+| --- | --- |
+| `extracted/records.csv` | Primary extracted dataset used by the dashboard |
+| `extracted/unprocessed.txt` | Processing report |
+| `extracted/dataless.txt` | Report of inputs with no target data |
+| `backup/` | Extraction snapshots |
+| `extracted/records.xlsx` | Optional workbook, only saved when explicitly enabled by the extraction CLI |
+| `extracted/figures.html`, `extracted/html/` | Optional reports saved by the standalone HTML script |
+
+The dashboard caches extracted records and reloads them when the CSV changes. Related image previews are read from the source directory. Changing or removing a container does not delete host-mounted storage.
+
+Keep one application container and one Gunicorn worker process per output directory so update/export locks are shared. Avoid running a separate extraction command during an interface update. Restarting interrupts active updates; the next startup marks unfinished update-history entries as failed.
+
+## Support
+
+For questions and support, contact bioinformatics@age.mpg.de.

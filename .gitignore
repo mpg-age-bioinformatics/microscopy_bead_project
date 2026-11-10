@@ -1,2 +1,35 @@
 .DS_Store
 __pycache__/
+
+# Local secrets and environments (never commit deployment credentials).
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Runtime state and private datasets belong in external host mounts.
+/accounts/
+/app-state/
+/data/
+/output/
+/extracted/
+/backup/
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.sqlite3-*
+*.csv
+*.xls
+*.xlsx
+*.log
+*.tar
+*.tar.gz
+*.zip
+figures.html
